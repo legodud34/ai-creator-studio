@@ -1,12 +1,17 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Image, Mic, Video, Wand2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Image, Mic, Video, Wand2, LayoutGrid } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
+import { useGallery } from "@/contexts/GalleryContext";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
+  const { images, videos } = useGallery();
+  const totalItems = images.length + videos.length;
 
   return (
     <div className="min-h-screen gradient-surface">
@@ -19,9 +24,23 @@ const Index = () => {
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
         <header className="text-center mb-8 md:mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-4 md:mb-6">
-            <Wand2 className="w-4 h-4 text-primary" />
-            <span className="text-xs md:text-sm font-medium">Creative AI Studio</span>
+          <div className="flex justify-center items-center gap-3 mb-4 md:mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass">
+              <Wand2 className="w-4 h-4 text-primary" />
+              <span className="text-xs md:text-sm font-medium">Creative AI Studio</span>
+            </div>
+            
+            <Link to="/gallery">
+              <Button variant="outline" size="sm" className="glass border-border/50 h-8 md:h-9">
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Gallery</span>
+                {totalItems > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
+            </Link>
           </div>
 
           <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-4">
