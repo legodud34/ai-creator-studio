@@ -53,7 +53,7 @@ export const useVideoGeneration = () => {
     throw new Error("Video generation timed out");
   }, []);
 
-  const generateVideo = async (prompt: string, aspectRatio: string = "16:9") => {
+  const generateVideo = async (prompt: string, aspectRatio: string = "16:9", duration: number = 5) => {
     if (!prompt.trim()) {
       toast({
         title: "Empty prompt",
@@ -68,7 +68,7 @@ export const useVideoGeneration = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-video", {
-        body: { prompt, aspectRatio },
+        body: { prompt, aspectRatio, duration },
       });
 
       if (error) throw new Error(error.message);

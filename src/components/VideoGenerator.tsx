@@ -1,17 +1,29 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Video, Loader2, Download, Trash2, Share2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Video, Loader2, Download, Trash2, Share2, Clock } from "lucide-react";
 import { useVideoGeneration, GeneratedVideo } from "@/hooks/useVideoGeneration";
 import { useToast } from "@/hooks/use-toast";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
+  const [duration, setDuration] = useState("5");
   const { isGenerating, progress, videos, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    await generateVideo(prompt);
+    const durationNum = parseInt(duration) || 5;
+    if (durationNum < 1 || durationNum > 10) {
+      toast({
+        title: "Invalid duration",
+        description: "Duration must be between 1 and 10 seconds.",
+        variant: "destructive",
+      });
+      return;
+    }
+    await generateVideo(prompt, "16:9", durationNum);
     setPrompt("");
   };
 
@@ -77,6 +89,26 @@ const VideoGenerator = () => {
           className="min-h-[100px] md:min-h-[120px] bg-background/50 border-border/50 focus:border-accent resize-none text-base"
           disabled={isGenerating}
         />
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <Label htmlFor="duration" className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
+              <Clock className="w-4 h-4" />
+              Duration (seconds)
+            </Label>
+            <Input
+              id="duration"
+              type="number"
+              min="1"
+              max="10"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className="bg-background/50 border-border/50"
+              disabled={isGenerating}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-6">1-10 sec</p>
+        </div>
 
         <Button
           onClick={handleGenerate}
