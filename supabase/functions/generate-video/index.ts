@@ -38,15 +38,16 @@ serve(async (req) => {
       );
     }
 
-    console.log("Starting video generation with prompt:", body.prompt);
+    console.log("Starting video generation with prompt:", body.prompt, "duration:", body.duration);
 
-    // Using Runway Gen-3 Alpha Turbo via Replicate
+    // Using Luma Ray via Replicate
     const prediction = await replicate.predictions.create({
       model: "luma/ray",
       input: {
         prompt: body.prompt,
         aspect_ratio: body.aspectRatio || "16:9",
         loop: false,
+        duration: body.duration || 5,
       },
     });
 
