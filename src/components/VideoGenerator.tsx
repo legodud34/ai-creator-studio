@@ -15,10 +15,10 @@ const VideoGenerator = () => {
 
   const handleGenerate = async () => {
     const durationNum = parseInt(duration) || 5;
-    if (durationNum < 1 || durationNum > 10) {
+    if (durationNum < 1 || durationNum > 600) {
       toast({
         title: "Invalid duration",
-        description: "Duration must be between 1 and 10 seconds.",
+        description: "Duration must be between 1 and 600 seconds (10 minutes).",
         variant: "destructive",
       });
       return;
@@ -100,14 +100,14 @@ const VideoGenerator = () => {
               id="duration"
               type="number"
               min="1"
-              max="10"
+              max="600"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className="bg-background/50 border-border/50"
               disabled={isGenerating}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-6">1-10 sec</p>
+          <p className="text-xs text-muted-foreground mt-6">1-600 sec (up to 10 min)</p>
         </div>
 
         <Button
