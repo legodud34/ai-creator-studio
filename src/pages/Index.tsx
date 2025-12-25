@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Image, Mic, Wand2 } from "lucide-react";
+import { Image, Mic, Video, Wand2 } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
+import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
 
 const Index = () => {
@@ -22,38 +23,52 @@ const Index = () => {
             <Wand2 className="w-4 h-4 text-primary" />
             <span className="text-xs md:text-sm font-medium">Creative AI Studio</span>
           </div>
-          
+
           <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-4">
             <span className="text-gradient">Create</span>{" "}
             <span className="text-foreground">with AI</span>
           </h1>
-          
+
           <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto px-4">
-            Generate stunning images and have creative voice conversations.
+            Generate images, videos, and have creative voice conversations.
           </p>
         </header>
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 w-full max-w-sm mx-auto h-12 md:h-14 p-1 glass">
+          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto h-12 md:h-14 p-1 glass">
             <TabsTrigger
               value="images"
-              className="h-full text-sm md:text-base font-medium data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground rounded-lg transition-all"
+              className="h-full text-xs md:text-sm font-medium data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground rounded-lg transition-all"
             >
-              <Image className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-              Images
+              <Image className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Images</span>
+              <span className="sm:hidden">Img</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="videos"
+              className="h-full text-xs md:text-sm font-medium data-[state=active]:gradient-accent data-[state=active]:text-accent-foreground rounded-lg transition-all"
+            >
+              <Video className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Videos</span>
+              <span className="sm:hidden">Vid</span>
             </TabsTrigger>
             <TabsTrigger
               value="voice"
-              className="h-full text-sm md:text-base font-medium data-[state=active]:gradient-accent data-[state=active]:text-accent-foreground rounded-lg transition-all"
+              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground rounded-lg transition-all"
             >
-              <Mic className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-              Voice
+              <Mic className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Voice</span>
+              <span className="sm:hidden">Chat</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="images" className="mt-6 md:mt-8">
             <ImageGenerator />
+          </TabsContent>
+
+          <TabsContent value="videos" className="mt-6 md:mt-8">
+            <VideoGenerator />
           </TabsContent>
 
           <TabsContent value="voice" className="mt-6 md:mt-8">
