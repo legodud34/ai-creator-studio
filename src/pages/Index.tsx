@@ -24,25 +24,25 @@ const Index = () => {
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
         <header className="mb-8 md:mb-12">
-          <div className="flex justify-between items-start mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass">
-              <Wand2 className="w-4 h-4 text-primary" />
-              <span className="text-xs md:text-sm font-medium">Afterglow AI</span>
-            </div>
-          </div>
-
-          <div className="text-center space-y-4">
+          <div className="flex justify-end mb-4">
             <Link to="/gallery">
-              <Button variant="outline" size="lg" className="glass border-border/50 h-12 px-6 text-base">
-                <LayoutGrid className="w-5 h-5 mr-2" />
+              <Button variant="outline" size="sm" className="glass border-border/50 h-9">
+                <LayoutGrid className="w-4 h-4 mr-1" />
                 Gallery
                 {totalItems > 0 && (
-                  <span className="ml-2 px-2 py-0.5 text-sm rounded-full bg-primary text-primary-foreground">
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
                     {totalItems}
                   </span>
                 )}
               </Button>
             </Link>
+          </div>
+
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass">
+              <Wand2 className="w-5 h-5 text-primary" />
+              <span className="text-base md:text-lg font-semibold">Afterglow AI</span>
+            </div>
 
             <h1 className="text-3xl md:text-5xl font-bold">
               <span className="text-gradient">Build</span>{" "}
