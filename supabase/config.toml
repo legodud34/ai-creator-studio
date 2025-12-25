@@ -1,1 +1,10 @@
 project_id = "dmikopljossmycwzyaxm"
+
+[functions.generate-image]
+verify_jwt = false
+
+[functions.generate-video]
+verify_jwt = false
+
+[functions.realtime-session]
+verify_jwt = false
