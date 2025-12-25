@@ -29,24 +29,26 @@ const Index = () => {
               <Wand2 className="w-4 h-4 text-primary" />
               <span className="text-xs md:text-sm font-medium">Afterglow AI</span>
             </div>
-            
+          </div>
+
+          <div className="text-center space-y-4">
             <Link to="/gallery">
-              <Button variant="outline" size="sm" className="glass border-border/50 h-8 md:h-9">
-                <LayoutGrid className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Gallery</span>
+              <Button variant="outline" size="lg" className="glass border-border/50 h-12 px-6 text-base">
+                <LayoutGrid className="w-5 h-5 mr-2" />
+                Gallery
                 {totalItems > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
+                  <span className="ml-2 px-2 py-0.5 text-sm rounded-full bg-primary text-primary-foreground">
                     {totalItems}
                   </span>
                 )}
               </Button>
             </Link>
-          </div>
 
-          <div className="text-center">
-            <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-4">
-              <span className="text-gradient">Create</span>{" "}
-              <span className="text-foreground">with AI</span>
+            <h1 className="text-3xl md:text-5xl font-bold">
+              <span className="text-gradient">Build</span>{" "}
+              <span className="text-foreground">the future</span>
+              <br />
+              <span className="text-foreground">of entertainment</span>
             </h1>
 
             <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto px-4">
