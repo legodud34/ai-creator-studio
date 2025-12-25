@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Image, Mic, Video, Wand2, LayoutGrid } from "lucide-react";
+import { Image, Mic, Video, LayoutGrid } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
 import { useGallery } from "@/contexts/GalleryContext";
+import afterglowLogo from "@/assets/afterglow-logo.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
@@ -39,10 +40,11 @@ const Index = () => {
           </div>
 
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass">
-              <Wand2 className="w-5 h-5 text-primary" />
-              <span className="text-base md:text-lg font-semibold">Afterglow AI</span>
-            </div>
+            <img 
+              src={afterglowLogo} 
+              alt="Afterglow AI" 
+              className="h-12 md:h-16 mx-auto"
+            />
 
             <h1 className="text-3xl md:text-5xl font-bold">
               <span className="text-gradient">Build</span>{" "}
