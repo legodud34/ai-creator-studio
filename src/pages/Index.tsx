@@ -23,11 +23,11 @@ const Index = () => {
 
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
-        <header className="text-center mb-8 md:mb-12">
-          <div className="flex justify-center items-center gap-3 mb-4 md:mb-6">
+        <header className="mb-8 md:mb-12">
+          <div className="flex justify-between items-start mb-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass">
               <Wand2 className="w-4 h-4 text-primary" />
-              <span className="text-xs md:text-sm font-medium">Creative AI Studio</span>
+              <span className="text-xs md:text-sm font-medium">Afterglow AI</span>
             </div>
             
             <Link to="/gallery">
@@ -43,14 +43,16 @@ const Index = () => {
             </Link>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-4">
-            <span className="text-gradient">Create</span>{" "}
-            <span className="text-foreground">with AI</span>
-          </h1>
+          <div className="text-center">
+            <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-4">
+              <span className="text-gradient">Create</span>{" "}
+              <span className="text-foreground">with AI</span>
+            </h1>
 
-          <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto px-4">
-            Generate images, videos, and have creative voice conversations.
-          </p>
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto px-4">
+              Generate images, videos, and have creative voice conversations.
+            </p>
+          </div>
         </header>
 
         {/* Main Content */}
