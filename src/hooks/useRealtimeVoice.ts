@@ -2,11 +2,20 @@ import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
 interface RealtimeVoiceState {
   isConnected: boolean;
   isConnecting: boolean;
   isSpeaking: boolean;
-  transcript: string;
+  isListening: boolean;
+  messages: Message[];
+  currentTranscript: string;
 }
 
 export const useRealtimeVoice = () => {
@@ -14,12 +23,16 @@ export const useRealtimeVoice = () => {
     isConnected: false,
     isConnecting: false,
     isSpeaking: false,
-    transcript: "",
+    isListening: false,
+    messages: [],
+    currentTranscript: "",
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const currentAssistantMessageRef = useRef<string>("");
+  const currentUserTranscriptRef = useRef<string>("");
   const { toast } = useToast();
 
   const connect = useCallback(async () => {
@@ -28,7 +41,9 @@ export const useRealtimeVoice = () => {
     try {
       // Get ephemeral token from edge function
       const { data, error } = await supabase.functions.invoke("realtime-session", {
-        body: {},
+        body: {
+          instructions: "You are a helpful, friendly AI assistant. Have natural conversations with the user. Be concise but warm. When the user speaks, listen carefully and respond thoughtfully."
+        },
       });
 
       if (error || data.error) {
@@ -65,21 +80,87 @@ export const useRealtimeVoice = () => {
       const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
 
+      dc.addEventListener("open", () => {
+        console.log("Data channel opened");
+        setState((prev) => ({ ...prev, isListening: true }));
+      });
+
       dc.addEventListener("message", (e) => {
         const event = JSON.parse(e.data);
-        console.log("Received event:", event.type);
+        console.log("Received event:", event.type, event);
 
-        if (event.type === "response.audio.delta") {
-          setState((prev) => ({ ...prev, isSpeaking: true }));
-        } else if (event.type === "response.audio.done") {
-          setState((prev) => ({ ...prev, isSpeaking: false }));
-        } else if (event.type === "response.audio_transcript.delta") {
-          setState((prev) => ({
-            ...prev,
-            transcript: prev.transcript + (event.delta || ""),
-          }));
-        } else if (event.type === "response.done") {
-          setState((prev) => ({ ...prev, isSpeaking: false }));
+        switch (event.type) {
+          case "response.audio.delta":
+            setState((prev) => ({ ...prev, isSpeaking: true, isListening: false }));
+            break;
+
+          case "response.audio.done":
+            setState((prev) => ({ ...prev, isSpeaking: false }));
+            break;
+
+          case "response.audio_transcript.delta":
+            // AI response transcript
+            currentAssistantMessageRef.current += event.delta || "";
+            setState((prev) => ({
+              ...prev,
+              currentTranscript: currentAssistantMessageRef.current,
+            }));
+            break;
+
+          case "response.audio_transcript.done":
+            // Finalize assistant message
+            if (currentAssistantMessageRef.current.trim()) {
+              const newMessage: Message = {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: currentAssistantMessageRef.current.trim(),
+                timestamp: new Date(),
+              };
+              setState((prev) => ({
+                ...prev,
+                messages: [...prev.messages, newMessage],
+                currentTranscript: "",
+              }));
+            }
+            currentAssistantMessageRef.current = "";
+            break;
+
+          case "conversation.item.input_audio_transcription.completed":
+            // User's speech was transcribed
+            if (event.transcript?.trim()) {
+              const userMessage: Message = {
+                id: crypto.randomUUID(),
+                role: "user",
+                content: event.transcript.trim(),
+                timestamp: new Date(),
+              };
+              setState((prev) => ({
+                ...prev,
+                messages: [...prev.messages, userMessage],
+              }));
+            }
+            break;
+
+          case "input_audio_buffer.speech_started":
+            setState((prev) => ({ ...prev, isListening: true }));
+            break;
+
+          case "input_audio_buffer.speech_stopped":
+            setState((prev) => ({ ...prev, isListening: false }));
+            break;
+
+          case "response.done":
+            setState((prev) => ({ ...prev, isSpeaking: false, isListening: true }));
+            break;
+
+          case "error":
+            console.error("Realtime API error:", event.error);
+            toast({
+              title: "Error",
+              description: event.error?.message || "An error occurred",
+              variant: "destructive",
+            });
+            break;
         }
       });
 
@@ -100,6 +181,8 @@ export const useRealtimeVoice = () => {
       });
 
       if (!sdpResponse.ok) {
+        const errorText = await sdpResponse.text();
+        console.error("WebRTC connection failed:", errorText);
         throw new Error("Failed to establish WebRTC connection");
       }
 
@@ -114,7 +197,8 @@ export const useRealtimeVoice = () => {
         ...prev,
         isConnected: true,
         isConnecting: false,
-        transcript: "",
+        messages: [],
+        currentTranscript: "",
       }));
 
       toast({
@@ -137,12 +221,16 @@ export const useRealtimeVoice = () => {
     pcRef.current?.close();
     dcRef.current = null;
     pcRef.current = null;
+    currentAssistantMessageRef.current = "";
+    currentUserTranscriptRef.current = "";
 
     setState({
       isConnected: false,
       isConnecting: false,
       isSpeaking: false,
-      transcript: "",
+      isListening: false,
+      messages: [],
+      currentTranscript: "",
     });
 
     toast({
@@ -161,6 +249,19 @@ export const useRealtimeVoice = () => {
       return;
     }
 
+    // Add user message to chat
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+      timestamp: new Date(),
+    };
+    setState((prev) => ({
+      ...prev,
+      messages: [...prev.messages, userMessage],
+      currentTranscript: "",
+    }));
+
     const event = {
       type: "conversation.item.create",
       item: {
@@ -172,7 +273,6 @@ export const useRealtimeVoice = () => {
 
     dcRef.current.send(JSON.stringify(event));
     dcRef.current.send(JSON.stringify({ type: "response.create" }));
-    setState((prev) => ({ ...prev, transcript: "" }));
   }, [toast]);
 
   return {
