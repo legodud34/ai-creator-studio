@@ -27,11 +27,11 @@ const VoiceChat = () => {
   return (
     <div className="space-y-6">
       {/* Voice Visualization */}
-      <div className="glass rounded-2xl p-8 flex flex-col items-center justify-center min-h-[300px]">
+      <div className="glass rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center min-h-[280px]">
         {/* Animated Voice Circle */}
         <div
           className={cn(
-            "relative w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500",
+            "relative w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center transition-all duration-500",
             isConnected
               ? isSpeaking
                 ? "gradient-primary animate-glow scale-110"
@@ -43,41 +43,41 @@ const VoiceChat = () => {
           {isSpeaking && (
             <>
               <div className="absolute inset-0 rounded-full gradient-primary opacity-30 animate-ping" />
-              <div className="absolute inset-[-10px] rounded-full border-2 border-primary/30 animate-pulse" />
-              <div className="absolute inset-[-20px] rounded-full border border-primary/20 animate-pulse-slow" />
+              <div className="absolute inset-[-8px] md:inset-[-10px] rounded-full border-2 border-primary/30 animate-pulse" />
             </>
           )}
           
           {isConnecting ? (
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 md:w-8 md:h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           ) : isConnected ? (
             isSpeaking ? (
-              <Volume2 className="w-12 h-12 text-primary-foreground animate-pulse" />
+              <Volume2 className="w-10 h-10 md:w-12 md:h-12 text-primary-foreground animate-pulse" />
             ) : (
-              <Mic className="w-12 h-12 text-foreground/80" />
+              <Mic className="w-10 h-10 md:w-12 md:h-12 text-foreground/80" />
             )
           ) : (
-            <MicOff className="w-12 h-12 text-muted-foreground" />
+            <MicOff className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />
           )}
         </div>
 
         {/* Status Text */}
-        <p className="mt-6 text-lg font-medium">
+        <p className="mt-4 md:mt-6 text-base md:text-lg font-medium text-center px-4">
           {isConnecting
             ? "Connecting..."
             : isConnected
             ? isSpeaking
               ? "AI is speaking..."
               : "Listening... speak anytime"
-            : "Click to start voice chat"}
+            : "Tap to start voice chat"}
         </p>
 
         {/* Connect/Disconnect Button */}
         <Button
           onClick={isConnected ? disconnect : connect}
           disabled={isConnecting}
+          size="lg"
           className={cn(
-            "mt-6 h-14 px-8 text-lg font-semibold rounded-full transition-all",
+            "mt-4 md:mt-6 h-12 md:h-14 px-6 md:px-8 text-base md:text-lg font-semibold rounded-full transition-all",
             isConnected
               ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               : "gradient-primary text-primary-foreground glow-primary"
@@ -101,7 +101,7 @@ const VoiceChat = () => {
       {transcript && (
         <div className="glass rounded-xl p-4">
           <p className="text-sm text-muted-foreground mb-2">AI Response:</p>
-          <p className="text-foreground">{transcript}</p>
+          <p className="text-foreground text-sm md:text-base">{transcript}</p>
         </div>
       )}
 
@@ -120,7 +120,7 @@ const VoiceChat = () => {
             <Button
               onClick={handleSendText}
               disabled={!textInput.trim()}
-              className="gradient-accent text-accent-foreground"
+              className="gradient-accent text-accent-foreground shrink-0"
             >
               <Send className="w-4 h-4" />
             </Button>
@@ -130,9 +130,8 @@ const VoiceChat = () => {
 
       {/* Tips */}
       {!isConnected && (
-        <div className="text-center text-sm text-muted-foreground space-y-1">
+        <div className="text-center text-sm text-muted-foreground space-y-1 px-4">
           <p>💡 Voice chat lets you have natural conversations with AI</p>
-          <p>Ask for creative ideas, brainstorm concepts, or just chat!</p>
         </div>
       )}
     </div>
