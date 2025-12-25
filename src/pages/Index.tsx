@@ -43,7 +43,7 @@ const Index = () => {
             <img 
               src={afterglowLogo} 
               alt="Afterglow AI" 
-              className="h-12 md:h-16 mx-auto"
+              className="h-20 md:h-28 mx-auto"
             />
 
             <h1 className="text-3xl md:text-5xl font-bold">
