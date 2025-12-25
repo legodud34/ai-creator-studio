@@ -28,8 +28,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-realtime-preview-2024-12-17",
+        model: "gpt-4o-realtime-preview-2024-10-01",
         voice: "alloy",
+        modalities: ["audio", "text"],
+        input_audio_transcription: { model: "whisper-1" },
         instructions: instructions || "You are a creative AI assistant. You help users brainstorm ideas, discuss creative projects, and provide inspiration. Be friendly, enthusiastic, and imaginative. Keep responses concise but engaging.",
       }),
     });
