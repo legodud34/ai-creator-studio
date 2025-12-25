@@ -122,6 +122,14 @@
     background-clip: text;
   }
 
+  .text-afterglow {
+    background: linear-gradient(90deg, hsl(35, 100%, 65%), hsl(340, 100%, 75%), hsl(280, 100%, 75%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px hsl(340 100% 70% / 0.5)) drop-shadow(0 0 60px hsl(280 100% 70% / 0.3));
+  }
+
   .glass {
     background: hsl(240 10% 8% / 0.8);
     backdrop-filter: blur(20px);

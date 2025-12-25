@@ -7,7 +7,6 @@ import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
 import { useGallery } from "@/contexts/GalleryContext";
-import afterglowLogo from "@/assets/afterglow-logo.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
@@ -40,11 +39,9 @@ const Index = () => {
           </div>
 
           <div className="text-center space-y-4">
-            <img 
-              src={afterglowLogo} 
-              alt="Afterglow AI" 
-              className="h-20 md:h-28 mx-auto"
-            />
+            <h1 className="text-5xl md:text-7xl font-bold text-afterglow">
+              Afterglow AI
+            </h1>
 
             <h1 className="text-3xl md:text-5xl font-bold">
               <span className="text-gradient">Build</span>{" "}
