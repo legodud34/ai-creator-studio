@@ -61,14 +61,31 @@ export const useRealtimeVoice = () => {
         audioElRef.current.autoplay = true;
       }
 
-      // Create peer connection
-      const pc = new RTCPeerConnection();
+      // Create peer connection (include a public STUN server so ICE completes reliably)
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
       pcRef.current = pc;
+
+      pc.onconnectionstatechange = () => {
+        console.log("WebRTC connection state:", pc.connectionState);
+      };
+      pc.oniceconnectionstatechange = () => {
+        console.log("WebRTC ICE connection state:", pc.iceConnectionState);
+      };
+      pc.onicegatheringstatechange = () => {
+        console.log("WebRTC ICE gathering state:", pc.iceGatheringState);
+      };
 
       // Set up remote audio
       pc.ontrack = (e) => {
+        console.log("Received remote audio track");
         if (audioElRef.current) {
           audioElRef.current.srcObject = e.streams[0];
+          // Some browsers require an explicit play() even with autoplay=true
+          audioElRef.current.play().catch(() => {
+            // ignore - user gesture already happened on the connect click
+          });
         }
       };
 
@@ -80,9 +97,44 @@ export const useRealtimeVoice = () => {
       const dc = pc.createDataChannel("oai-events");
       dcRef.current = dc;
 
+      const sendSessionUpdate = () => {
+        // Ensure voice/text + server-side VAD are enabled so speaking triggers responses
+        const sessionUpdate = {
+          type: "session.update",
+          session: {
+            modalities: ["text", "audio"],
+            instructions:
+              "You are a helpful, friendly AI assistant. Have natural conversations with the user. Be concise but warm.",
+            input_audio_transcription: { model: "whisper-1" },
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 900,
+            },
+          },
+        };
+
+        try {
+          dc.send(JSON.stringify(sessionUpdate));
+          console.log("Sent session.update");
+        } catch (err) {
+          console.warn("Failed to send session.update", err);
+        }
+      };
+
       dc.addEventListener("open", () => {
         console.log("Data channel opened");
+        sendSessionUpdate();
         setState((prev) => ({ ...prev, isListening: true }));
+      });
+
+      dc.addEventListener("close", () => {
+        console.log("Data channel closed");
+      });
+
+      dc.addEventListener("error", (e) => {
+        console.log("Data channel error", e);
       });
 
       dc.addEventListener("message", (e) => {
@@ -98,8 +150,9 @@ export const useRealtimeVoice = () => {
             setState((prev) => ({ ...prev, isSpeaking: false }));
             break;
 
-          case "response.audio_transcript.delta":
-            // AI response transcript
+          // Some sessions stream text via response.text.* instead of audio transcript events
+          case "response.text.delta":
+          case "response.output_text.delta":
             currentAssistantMessageRef.current += event.delta || "";
             setState((prev) => ({
               ...prev,
@@ -107,8 +160,9 @@ export const useRealtimeVoice = () => {
             }));
             break;
 
+          case "response.text.done":
+          case "response.output_text.done":
           case "response.audio_transcript.done":
-            // Finalize assistant message
             if (currentAssistantMessageRef.current.trim()) {
               const newMessage: Message = {
                 id: crypto.randomUUID(),
@@ -125,8 +179,15 @@ export const useRealtimeVoice = () => {
             currentAssistantMessageRef.current = "";
             break;
 
+          case "response.audio_transcript.delta":
+            currentAssistantMessageRef.current += event.delta || "";
+            setState((prev) => ({
+              ...prev,
+              currentTranscript: currentAssistantMessageRef.current,
+            }));
+            break;
+
           case "conversation.item.input_audio_transcription.completed":
-            // User's speech was transcribed
             if (event.transcript?.trim()) {
               const userMessage: Message = {
                 id: crypto.randomUUID(),
@@ -168,12 +229,33 @@ export const useRealtimeVoice = () => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
+      // Wait until ICE gathering is complete so the SDP includes candidates
+      await new Promise<void>((resolve) => {
+        if (!pcRef.current) return resolve();
+        if (pc.iceGatheringState === "complete") return resolve();
+
+        const onStateChange = () => {
+          if (pc.iceGatheringState === "complete") {
+            pc.removeEventListener("icegatheringstatechange", onStateChange);
+            resolve();
+          }
+        };
+
+        pc.addEventListener("icegatheringstatechange", onStateChange);
+
+        // Safety timeout
+        setTimeout(() => {
+          pc.removeEventListener("icegatheringstatechange", onStateChange);
+          resolve();
+        }, 2500);
+      });
+
       // Connect to OpenAI's Realtime API
       const baseUrl = "https://api.openai.com/v1/realtime";
       const model = "gpt-4o-realtime-preview-2024-10-01";
       const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
         method: "POST",
-        body: offer.sdp,
+        body: pc.localDescription?.sdp || offer.sdp,
         headers: {
           Authorization: `Bearer ${EPHEMERAL_KEY}`,
           "Content-Type": "application/sdp",
@@ -203,7 +285,7 @@ export const useRealtimeVoice = () => {
 
       toast({
         title: "Connected",
-        description: "Voice chat is ready. Start speaking!",
+        description: "Voice chat is ready. Start speaking or type a message.",
       });
     } catch (error) {
       console.error("Error connecting:", error);
@@ -217,10 +299,23 @@ export const useRealtimeVoice = () => {
   }, [toast]);
 
   const disconnect = useCallback(() => {
+    try {
+      // Stop local mic tracks
+      const pc = pcRef.current;
+      pc?.getSenders().forEach((sender) => sender.track?.stop());
+    } catch {
+      // ignore
+    }
+
     dcRef.current?.close();
     pcRef.current?.close();
     dcRef.current = null;
     pcRef.current = null;
+
+    if (audioElRef.current) {
+      audioElRef.current.srcObject = null;
+    }
+
     currentAssistantMessageRef.current = "";
     currentUserTranscriptRef.current = "";
 
