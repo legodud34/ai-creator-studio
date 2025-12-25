@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useGallery } from "@/contexts/GalleryContext";
 
 export interface GeneratedImage {
   id: string;
@@ -11,7 +12,7 @@ export interface GeneratedImage {
 
 export const useImageGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const { images, addImage, deleteImage } = useGallery();
   const { toast } = useToast();
 
   const generateImage = async (prompt: string) => {
@@ -46,7 +47,7 @@ export const useImageGeneration = () => {
         createdAt: new Date(),
       };
 
-      setImages((prev) => [newImage, ...prev]);
+      addImage(newImage);
 
       toast({
         title: "Image generated!",
@@ -65,10 +66,6 @@ export const useImageGeneration = () => {
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const deleteImage = (id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
   };
 
   return {

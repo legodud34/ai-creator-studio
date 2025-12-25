@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useGallery } from "@/contexts/GalleryContext";
 
 export interface GeneratedVideo {
   id: string;
@@ -12,12 +13,11 @@ export interface GeneratedVideo {
 export const useVideoGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState("");
-  const [videos, setVideos] = useState<GeneratedVideo[]>([]);
+  const { videos, addVideo, deleteVideo } = useGallery();
   const { toast } = useToast();
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const pollForCompletion = useCallback(async (predictionId: string, prompt: string): Promise<GeneratedVideo | null> => {
-    const maxAttempts = 120; // 10 minutes max (5s intervals)
+    const maxAttempts = 120;
     let attempts = 0;
 
     while (attempts < maxAttempts) {
@@ -28,31 +28,24 @@ export const useVideoGeneration = () => {
 
         if (error) throw new Error(error.message);
 
-        console.log("Poll response:", data.status);
-
         if (data.status === "succeeded") {
           const videoUrl = Array.isArray(data.output) ? data.output[0] : data.output;
-          
-          const newVideo: GeneratedVideo = {
+          return {
             id: predictionId,
             prompt,
             videoUrl,
             createdAt: new Date(),
           };
-
-          return newVideo;
         }
 
         if (data.status === "failed" || data.status === "canceled") {
           throw new Error(data.error || "Video generation failed");
         }
 
-        setProgress(`Generating video... ${Math.min(Math.round((attempts / 60) * 100), 95)}%`);
-        
+        setProgress(`Generating... ${Math.min(Math.round((attempts / 60) * 100), 95)}%`);
         await new Promise((resolve) => setTimeout(resolve, 5000));
         attempts++;
       } catch (error) {
-        console.error("Polling error:", error);
         throw error;
       }
     }
@@ -71,7 +64,7 @@ export const useVideoGeneration = () => {
     }
 
     setIsGenerating(true);
-    setProgress("Starting video generation...");
+    setProgress("Starting...");
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-video", {
@@ -81,25 +74,21 @@ export const useVideoGeneration = () => {
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-      const predictionId = data.id;
-      console.log("Prediction started:", predictionId);
+      setProgress("Generating... This takes 1-2 min");
 
-      setProgress("Video is being generated... This may take 1-2 minutes.");
-
-      const newVideo = await pollForCompletion(predictionId, prompt);
+      const newVideo = await pollForCompletion(data.id, prompt);
 
       if (newVideo) {
-        setVideos((prev) => [newVideo, ...prev]);
+        addVideo(newVideo);
         toast({
           title: "Video generated!",
-          description: "Your video is ready to view.",
+          description: "Your video is ready.",
         });
         return newVideo;
       }
 
       return null;
     } catch (error) {
-      console.error("Error generating video:", error);
       toast({
         title: "Generation failed",
         description: error instanceof Error ? error.message : "Failed to generate video",
@@ -109,14 +98,7 @@ export const useVideoGeneration = () => {
     } finally {
       setIsGenerating(false);
       setProgress("");
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
     }
-  };
-
-  const deleteVideo = (id: string) => {
-    setVideos((prev) => prev.filter((vid) => vid.id !== id));
   };
 
   return {
