@@ -43,7 +43,6 @@ const ImageGenerator = () => {
         await navigator.share({
           title: "Check out this AI-generated image!",
           text: image.prompt,
-          url: image.imageUrl,
         });
       } else {
         await navigator.clipboard.writeText(image.imageUrl);
@@ -58,26 +57,26 @@ const ImageGenerator = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Input Section */}
-      <div className="glass rounded-2xl p-6 space-y-4">
+      <div className="glass rounded-2xl p-4 md:p-6 space-y-4">
         <div className="flex items-center gap-2 text-primary">
           <Sparkles className="w-5 h-5" />
-          <h2 className="text-lg font-semibold">Create Image</h2>
+          <h2 className="text-base md:text-lg font-semibold">Create Image</h2>
         </div>
         
         <Textarea
-          placeholder="Describe the image you want to create... Be creative and detailed!"
+          placeholder="Describe the image you want to create..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="min-h-[120px] bg-background/50 border-border/50 focus:border-primary resize-none"
+          className="min-h-[100px] md:min-h-[120px] bg-background/50 border-border/50 focus:border-primary resize-none text-base"
           disabled={isGenerating}
         />
         
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim()}
-          className="w-full gradient-primary text-primary-foreground font-semibold h-12 glow-primary"
+          className="w-full gradient-primary text-primary-foreground font-semibold h-11 md:h-12 glow-primary"
         >
           {isGenerating ? (
             <>
@@ -96,13 +95,13 @@ const ImageGenerator = () => {
       {/* Gallery Section */}
       {images.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground/80">Your Creations</h3>
+          <h3 className="text-base md:text-lg font-semibold text-foreground/80">Your Creations</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:gap-6">
             {images.map((image) => (
               <div
                 key={image.id}
-                className="glass rounded-2xl overflow-hidden group"
+                className="glass rounded-2xl overflow-hidden"
               >
                 <div className="relative aspect-square">
                   <img
@@ -110,42 +109,41 @@ const ImageGenerator = () => {
                     alt={image.prompt}
                     className="w-full h-full object-cover"
                   />
+                </div>
+                
+                {/* Actions below image for mobile */}
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-foreground/80 line-clamp-2">
+                    {image.prompt}
+                  </p>
                   
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-0 left-0 right-0 p-4 space-y-3">
-                      <p className="text-sm text-foreground/80 line-clamp-2">
-                        {image.prompt}
-                      </p>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleDownload(image)}
-                          className="flex-1"
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleShare(image)}
-                          className="flex-1"
-                        >
-                          <Share2 className="w-4 h-4 mr-1" />
-                          Share
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteImage(image.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleDownload(image)}
+                      className="flex-1 h-10"
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleShare(image)}
+                      className="flex-1 h-10"
+                    >
+                      <Share2 className="w-4 h-4 mr-1" />
+                      Share
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteImage(image.id)}
+                      className="h-10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -156,9 +154,9 @@ const ImageGenerator = () => {
 
       {/* Empty State */}
       {images.length === 0 && !isGenerating && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Your generated images will appear here</p>
+        <div className="text-center py-8 md:py-12 text-muted-foreground">
+          <Sparkles className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-4 opacity-50" />
+          <p className="text-sm md:text-base">Your generated images will appear here</p>
         </div>
       )}
     </div>
