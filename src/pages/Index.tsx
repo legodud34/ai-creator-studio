@@ -39,7 +39,7 @@ const Index = () => {
           </div>
 
           <div className="text-center space-y-4">
-            <h1 className="text-5xl md:text-7xl font-bold text-afterglow">
+            <h1 className="text-5xl md:text-7xl font-bold text-afterglow py-2 px-4">
               Afterglow AI
             </h1>
 
