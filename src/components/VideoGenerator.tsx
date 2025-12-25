@@ -9,21 +9,22 @@ import { useToast } from "@/hooks/use-toast";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
-  const [duration, setDuration] = useState("5");
+  const [duration, setDuration] = useState("1");
   const { isGenerating, progress, videos, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    const durationNum = parseInt(duration) || 5;
-    if (durationNum < 1 || durationNum > 600) {
+    const durationMinutes = parseInt(duration) || 1;
+    if (durationMinutes < 1 || durationMinutes > 10) {
       toast({
         title: "Invalid duration",
-        description: "Duration must be between 1 and 600 seconds (10 minutes).",
+        description: "Duration must be between 1 and 10 minutes.",
         variant: "destructive",
       });
       return;
     }
-    await generateVideo(prompt, "16:9", durationNum);
+    const durationSeconds = durationMinutes * 60;
+    await generateVideo(prompt, "16:9", durationSeconds);
     setPrompt("");
   };
 
@@ -94,20 +95,20 @@ const VideoGenerator = () => {
           <div className="flex-1">
             <Label htmlFor="duration" className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
               <Clock className="w-4 h-4" />
-              Duration (seconds)
+              Duration (minutes)
             </Label>
             <Input
               id="duration"
               type="number"
               min="1"
-              max="600"
+              max="10"
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className="bg-background/50 border-border/50"
               disabled={isGenerating}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-6">1-600 sec (up to 10 min)</p>
+          <p className="text-xs text-muted-foreground mt-6">1-10 min</p>
         </div>
 
         <Button
