@@ -102,7 +102,7 @@ const VoiceChat = () => {
             "mt-4 h-11 px-6 text-base font-semibold rounded-full transition-all",
             isConnected
               ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              : "gradient-primary text-primary-foreground glow-primary"
+              : "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-[0_0_25px_hsl(140,70%,50%/0.5)] hover:shadow-[0_0_35px_hsl(140,70%,50%/0.6)] hover:from-green-300 hover:to-emerald-400"
           )}
         >
           {isConnected ? (
