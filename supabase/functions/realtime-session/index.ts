@@ -28,7 +28,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-realtime-preview",
+        model: "gpt-4o-realtime-preview-2024-12-17",
         voice: "alloy",
         modalities: ["audio", "text"],
         input_audio_transcription: { model: "whisper-1" },
