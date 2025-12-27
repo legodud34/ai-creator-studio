@@ -89,7 +89,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger
               value="voice"
-              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white rounded-lg transition-all"
+              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_hsl(140,70%,50%/0.5)] rounded-lg transition-all"
             >
               <Mic className="w-4 h-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Voice</span>
