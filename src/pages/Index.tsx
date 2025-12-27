@@ -39,12 +39,24 @@ const Index = () => {
           </div>
 
           <div className="text-center space-y-4">
-            <h1 className="text-5xl md:text-7xl font-bold text-afterglow py-2 px-4">
+            <h1 className={`text-5xl md:text-7xl font-bold py-2 px-4 transition-all duration-500 ${
+              activeTab === "images" 
+                ? "text-afterglow" 
+                : activeTab === "videos" 
+                  ? "text-afterglow-accent" 
+                  : "text-afterglow-voice"
+            }`}>
               Afterglow AI
             </h1>
 
             <h1 className="text-3xl md:text-5xl font-bold">
-              <span className="text-gradient">Build</span>{" "}
+              <span className={`transition-all duration-500 ${
+                activeTab === "images" 
+                  ? "text-gradient" 
+                  : activeTab === "videos" 
+                    ? "text-gradient-accent" 
+                    : "text-gradient-voice"
+              }`}>Build</span>{" "}
               <span className="text-foreground">the future</span>
               <br />
               <span className="text-foreground">of entertainment</span>
@@ -77,7 +89,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger
               value="voice"
-              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground rounded-lg transition-all"
+              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white rounded-lg transition-all"
             >
               <Mic className="w-4 h-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Voice</span>
