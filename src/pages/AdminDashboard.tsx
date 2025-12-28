@@ -83,6 +83,9 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [banReason, setBanReason] = useState("");
 
+  const [roleUsername, setRoleUsername] = useState("");
+  const [isRoleUpdating, setIsRoleUpdating] = useState(false);
+
   useEffect(() => {
     const checkAdminAndFetchData = async () => {
       if (!user) {
@@ -297,6 +300,60 @@ const AdminDashboard = () => {
     }
   };
 
+  const getUserIdByUsername = async (username: string) => {
+    const normalized = username.trim().replace(/^@/, "");
+    if (!normalized) return null;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", normalized)
+      .maybeSingle();
+
+    if (error) {
+      toast({ title: "Couldn't look up user", variant: "destructive" });
+      return null;
+    }
+
+    return data?.id ?? null;
+  };
+
+  const handleGrantAdminByUsername = async () => {
+    if (!isOwner) return;
+    setIsRoleUpdating(true);
+    try {
+      const targetId = await getUserIdByUsername(roleUsername);
+      if (!targetId) {
+        toast({ title: "User not found", description: "Check the username and try again.", variant: "destructive" });
+        return;
+      }
+      if (targetId === user?.id) {
+        toast({ title: "You're already the owner", description: "Owner access is higher than admin.", variant: "destructive" });
+        return;
+      }
+      await handleGrantRole(targetId, "admin");
+      setRoleUsername("");
+    } finally {
+      setIsRoleUpdating(false);
+    }
+  };
+
+  const handleRevokeAdminByUsername = async () => {
+    if (!isOwner) return;
+    setIsRoleUpdating(true);
+    try {
+      const targetId = await getUserIdByUsername(roleUsername);
+      if (!targetId) {
+        toast({ title: "User not found", description: "Check the username and try again.", variant: "destructive" });
+        return;
+      }
+      await handleRevokeRole(targetId, "admin");
+      setRoleUsername("");
+    } finally {
+      setIsRoleUpdating(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -349,6 +406,45 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
+            {isOwner && (
+              <section className="glass rounded-xl p-4">
+                <h2 className="text-sm font-semibold mb-3">Add / Remove Admin</h2>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={roleUsername}
+                    onChange={(e) => setRoleUsername(e.target.value)}
+                    placeholder="Username (e.g. @jane)"
+                    className="glass"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleGrantAdminByUsername}
+                      disabled={isRoleUpdating || !roleUsername.trim()}
+                      className="gap-2"
+                    >
+                      {isRoleUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldPlus className="w-4 h-4" />}
+                      Make Admin
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleRevokeAdminByUsername}
+                      disabled={isRoleUpdating || !roleUsername.trim()}
+                      className="gap-2"
+                    >
+                      {isRoleUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldMinus className="w-4 h-4" />}
+                      Remove Admin
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Note: Row buttons only show for non-owner users; this box lets you manage roles even if the user list only contains you.
+                </p>
+              </section>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
