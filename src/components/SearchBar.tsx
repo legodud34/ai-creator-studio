@@ -44,20 +44,20 @@ const SearchBar = () => {
           g.toLowerCase().includes(query.toLowerCase())
         );
 
-        // Search videos (include genre in results)
+        // Search videos (include genre and title in results)
         const { data: videos } = await supabase
           .from("videos")
-          .select("id, prompt, url, genre")
+          .select("id, prompt, url, genre, title")
           .eq("is_public", true)
-          .or(`prompt.ilike.%${query}%,genre.ilike.%${query}%`)
+          .or(`prompt.ilike.%${query}%,genre.ilike.%${query}%,title.ilike.%${query}%`)
           .limit(10);
 
-        // Search images
+        // Search images (include title)
         const { data: images } = await supabase
           .from("images")
-          .select("id, prompt, url")
+          .select("id, prompt, url, title")
           .eq("is_public", true)
-          .ilike("prompt", `%${query}%`)
+          .or(`prompt.ilike.%${query}%,title.ilike.%${query}%`)
           .limit(5);
 
         // Search users
@@ -104,7 +104,7 @@ const SearchBar = () => {
           searchResults.push({
             type: "video",
             id: v.id,
-            title: v.prompt.slice(0, 50) + (v.prompt.length > 50 ? "..." : ""),
+            title: v.title || v.prompt.slice(0, 50) + (v.prompt.length > 50 ? "..." : ""),
             subtitle: v.genre || "Video",
             url: v.url,
             genre: v.genre
@@ -116,7 +116,7 @@ const SearchBar = () => {
           searchResults.push({
             type: "image",
             id: i.id,
-            title: i.prompt.slice(0, 50) + (i.prompt.length > 50 ? "..." : ""),
+            title: i.title || i.prompt.slice(0, 50) + (i.prompt.length > 50 ? "..." : ""),
             subtitle: "Image",
             url: i.url
           });
