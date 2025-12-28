@@ -93,62 +93,54 @@ const ImageGenerator = () => {
         </Button>
       </div>
 
-      {/* Gallery Section */}
+      {/* Latest Image Section */}
       {images.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-base md:text-lg font-semibold text-foreground/80">Your Creations</h3>
+          <h3 className="text-base md:text-lg font-semibold text-foreground/80">Your Creation</h3>
           
-          <div className="grid grid-cols-1 gap-4 md:gap-6">
-            {images.map((image) => (
-              <div
-                key={image.id}
-                className="glass rounded-2xl overflow-hidden"
-              >
-                <div className="relative aspect-square">
-                  <img
-                    src={image.url}
-                    alt={image.prompt}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Actions below image for mobile */}
-                <div className="p-4 space-y-3">
-                  <p className="text-sm text-foreground/80 line-clamp-2">
-                    {image.prompt}
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleDownload(image)}
-                      className="flex-1 h-10"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleShare(image)}
-                      className="flex-1 h-10"
-                    >
-                      <Share2 className="w-4 h-4 mr-1" />
-                      Share
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => deleteImage(image.id)}
-                      className="h-10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+          <div className="glass rounded-2xl overflow-hidden">
+            <div className="relative aspect-square">
+              <img
+                src={images[0].url}
+                alt={images[0].prompt}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-foreground/80 line-clamp-2">
+                {images[0].prompt}
+              </p>
+              
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleDownload(images[0])}
+                  className="flex-1 h-10"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleShare(images[0])}
+                  className="flex-1 h-10"
+                >
+                  <Share2 className="w-4 h-4 mr-1" />
+                  Share
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => deleteImage(images[0].id)}
+                  className="h-10"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
