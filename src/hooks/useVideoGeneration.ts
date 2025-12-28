@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGallery } from "@/contexts/GalleryContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRateLimit, RATE_LIMITS } from "@/hooks/useRateLimit";
 
 export interface GeneratedVideo {
   id: string;
@@ -17,6 +18,7 @@ export const useVideoGeneration = () => {
   const { videos, addVideo, deleteVideo } = useGallery();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkRateLimit, recordAttempt } = useRateLimit("video", RATE_LIMITS.videoGeneration);
 
   const detectGenre = async (prompt: string): Promise<string | null> => {
     try {
@@ -92,8 +94,20 @@ export const useVideoGeneration = () => {
       return null;
     }
 
+    // Check rate limit
+    const { allowed, resetIn } = checkRateLimit();
+    if (!allowed) {
+      toast({
+        title: "Rate limit reached",
+        description: `You've used all your video generations. Try again in ${resetIn} seconds.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     setIsGenerating(true);
     setProgress("Detecting genre...");
+    recordAttempt(); // Record the attempt for rate limiting
 
     try {
       // Auto-detect genre from prompt
