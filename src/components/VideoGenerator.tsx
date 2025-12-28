@@ -7,6 +7,8 @@ import { Video, Loader2, Download, Trash2, Share2, Clock } from "lucide-react";
 import { useVideoGeneration, GeneratedVideo } from "@/hooks/useVideoGeneration";
 import { useToast } from "@/hooks/use-toast";
 import SavedWordsBar from "@/components/SavedWordsBar";
+import { useSavedWords } from "@/hooks/useSavedWords";
+import { parseBracketDefinitions, expandSavedWords } from "@/lib/savedWordsUtils";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -15,6 +17,7 @@ const VideoGenerator = () => {
   const [latestVideo, setLatestVideo] = useState<GeneratedVideo | null>(null);
   const { isGenerating, progress, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
+  const { savedWords, saveWord } = useSavedWords();
 
   const handleGenerate = async () => {
     const value = parseInt(durationValue) || 5;
@@ -29,7 +32,22 @@ const VideoGenerator = () => {
       return;
     }
     
-    const result = await generateVideo(prompt, "16:9", durationSeconds);
+    // Parse bracket definitions and save new words
+    const { cleanPrompt, newWords } = parseBracketDefinitions(prompt);
+    
+    // Save any new words with definitions
+    newWords.forEach(({ word, definition }) => {
+      saveWord(word, definition);
+      toast({
+        title: "Word saved!",
+        description: `"${word}" saved with definition.`,
+      });
+    });
+    
+    // Expand any saved words in the prompt
+    const expandedPrompt = expandSavedWords(cleanPrompt, savedWords);
+    
+    const result = await generateVideo(expandedPrompt, "16:9", durationSeconds);
     if (result) {
       setLatestVideo(result);
     }

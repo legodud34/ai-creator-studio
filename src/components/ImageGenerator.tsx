@@ -6,14 +6,32 @@ import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { useToast } from "@/hooks/use-toast";
 import { GalleryImage } from "@/contexts/GalleryContext";
 import SavedWordsBar from "@/components/SavedWordsBar";
+import { useSavedWords } from "@/hooks/useSavedWords";
+import { parseBracketDefinitions, expandSavedWords } from "@/lib/savedWordsUtils";
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
   const { isGenerating, images, generateImage, deleteImage } = useImageGeneration();
   const { toast } = useToast();
+  const { savedWords, saveWord } = useSavedWords();
 
   const handleGenerate = async () => {
-    await generateImage(prompt);
+    // Parse bracket definitions and save new words
+    const { cleanPrompt, newWords } = parseBracketDefinitions(prompt);
+    
+    // Save any new words with definitions
+    newWords.forEach(({ word, definition }) => {
+      saveWord(word, definition);
+      toast({
+        title: "Word saved!",
+        description: `"${word}" saved with definition.`,
+      });
+    });
+    
+    // Expand any saved words in the prompt
+    const expandedPrompt = expandSavedWords(cleanPrompt, savedWords);
+    
+    await generateImage(expandedPrompt);
     setPrompt("");
   };
 

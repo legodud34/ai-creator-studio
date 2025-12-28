@@ -5,6 +5,7 @@ const STORAGE_KEY = "afterglow_saved_words";
 export interface SavedWord {
   id: string;
   word: string;
+  definition?: string;
   createdAt: Date;
 }
 
@@ -26,18 +27,29 @@ export const useSavedWords = () => {
     }
   }, []);
 
-  const saveWord = (word: string) => {
-    const trimmed = word.trim();
+  const saveWord = (word: string, definition?: string) => {
+    const trimmed = word.trim().toLowerCase();
     if (!trimmed) return;
     
-    // Check if word already exists
-    if (savedWords.some(w => w.word.toLowerCase() === trimmed.toLowerCase())) {
+    // Check if word already exists - update definition if so
+    const existingIndex = savedWords.findIndex(w => w.word.toLowerCase() === trimmed);
+    
+    if (existingIndex >= 0) {
+      // Update existing word's definition
+      const updated = [...savedWords];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        definition: definition || updated[existingIndex].definition,
+      };
+      setSavedWords(updated);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return;
     }
 
     const newWord: SavedWord = {
       id: crypto.randomUUID(),
       word: trimmed,
+      definition,
       createdAt: new Date(),
     };
 
