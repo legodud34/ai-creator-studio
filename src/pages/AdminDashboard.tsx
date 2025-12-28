@@ -45,6 +45,8 @@ import {
   Plus,
   Trash2,
   Pencil,
+  ArrowUpRight,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,8 +78,17 @@ interface Report {
   status: string;
   created_at: string;
   genre?: string | null;
+  moderator_id?: string | null;
+  escalation_notes?: string | null;
+  escalated_at?: string | null;
+  escalated_to?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   reporter?: { username: string };
   reported_user?: { username: string };
+  moderator?: { username: string };
+  reviewed_by_user?: { username: string };
+  escalated_to_user?: { username: string };
 }
 
 interface ModeratorGenreAssignment {
@@ -153,7 +164,11 @@ const AdminDashboard = () => {
   const [assignAdminUsername, setAssignAdminUsername] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [banRecords, setBanRecords] = useState<BanRecord[]>([]);
-  
+  const [myGenres, setMyGenres] = useState<string[]>([]);
+  const [escalationNotes, setEscalationNotes] = useState("");
+  const [reportBanReason, setReportBanReason] = useState("");
+  const [reportSuspendReason, setReportSuspendReason] = useState("");
+  const [reportSuspendDays, setReportSuspendDays] = useState("");
   // Monthly report form states (for admins)
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
@@ -271,11 +286,14 @@ const AdminDashboard = () => {
       .order("created_at", { ascending: false });
 
     if (reportsData) {
-      // Get usernames for reports
+      // Get usernames for reports - include moderator, reviewed_by, escalated_to
       const userIds = [
         ...new Set([
           ...reportsData.map((r) => r.reporter_id).filter(Boolean),
           ...reportsData.map((r) => r.reported_user_id),
+          ...reportsData.map((r) => r.moderator_id).filter(Boolean),
+          ...reportsData.map((r) => r.reviewed_by).filter(Boolean),
+          ...reportsData.map((r) => r.escalated_to).filter(Boolean),
         ]),
       ];
 
@@ -290,6 +308,9 @@ const AdminDashboard = () => {
         ...r,
         reporter: profileMap.get(r.reporter_id),
         reported_user: profileMap.get(r.reported_user_id),
+        moderator: r.moderator_id ? profileMap.get(r.moderator_id) : undefined,
+        reviewed_by_user: r.reviewed_by ? profileMap.get(r.reviewed_by) : undefined,
+        escalated_to_user: r.escalated_to ? profileMap.get(r.escalated_to) : undefined,
       }));
 
       setReports(enrichedReports);
@@ -313,6 +334,14 @@ const AdminDashboard = () => {
         ...g,
         moderator: profileMap.get(g.moderator_user_id),
       })));
+
+      // Set current user's assigned genres for moderator filtering
+      if (user) {
+        const userGenres = genreAssignData
+          .filter(g => g.moderator_user_id === user.id)
+          .map(g => g.genre);
+        setMyGenres(userGenres);
+      }
     }
 
     // Fetch moderator-admin assignments (only for owner)
@@ -545,6 +574,133 @@ const AdminDashboard = () => {
       toast({ title: `Report ${status}` });
       fetchData();
     }
+  };
+
+  // Moderator marks a report as reviewed (initial review before escalation)
+  const handleModeratorReview = async (reportId: string) => {
+    const { error } = await supabase
+      .from("reports")
+      .update({
+        moderator_id: user?.id,
+      })
+      .eq("id", reportId);
+
+    if (error) {
+      toast({ title: "Failed to mark as reviewed", variant: "destructive" });
+    } else {
+      toast({ title: "Report marked as reviewed by you" });
+      fetchData();
+    }
+  };
+
+  // Moderator escalates report to their admin
+  const handleEscalateReport = async (reportId: string, adminId: string) => {
+    if (!escalationNotes.trim()) {
+      toast({ title: "Please add escalation notes", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("reports")
+      .update({
+        moderator_id: user?.id,
+        escalation_notes: escalationNotes,
+        escalated_at: new Date().toISOString(),
+        escalated_to: adminId,
+      })
+      .eq("id", reportId);
+
+    if (error) {
+      toast({ title: "Failed to escalate report", variant: "destructive" });
+    } else {
+      toast({ title: "Report escalated to admin" });
+      setEscalationNotes("");
+      fetchData();
+    }
+  };
+
+  // Admin bans user directly from report
+  const handleBanFromReport = async (reportId: string, userId: string) => {
+    if (!reportBanReason.trim()) {
+      toast({ title: "Please provide a ban reason", variant: "destructive" });
+      return;
+    }
+
+    const { error: banError } = await supabase.from("banned_users").insert({
+      user_id: userId,
+      reason: reportBanReason,
+      banned_by: user?.id,
+    });
+
+    if (banError) {
+      toast({ title: "Failed to ban user", variant: "destructive" });
+      return;
+    }
+
+    // Also resolve the report
+    await supabase
+      .from("reports")
+      .update({
+        status: "resolved",
+        reviewed_by: user?.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", reportId);
+
+    toast({ title: "User banned and report resolved" });
+    setReportBanReason("");
+    fetchData();
+  };
+
+  // Admin suspends user directly from report
+  const handleSuspendFromReport = async (reportId: string, userId: string) => {
+    if (!reportSuspendReason.trim()) {
+      toast({ title: "Please provide a suspension reason", variant: "destructive" });
+      return;
+    }
+    
+    const days = parseInt(reportSuspendDays, 10);
+    if (isNaN(days) || days < 1) {
+      toast({ title: "Please enter a valid number of days", variant: "destructive" });
+      return;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + days);
+
+    const { error: suspendError } = await supabase.from("banned_users").insert({
+      user_id: userId,
+      reason: reportSuspendReason,
+      banned_by: user?.id,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (suspendError) {
+      toast({ title: "Failed to suspend user", variant: "destructive" });
+      return;
+    }
+
+    // Also resolve the report
+    await supabase
+      .from("reports")
+      .update({
+        status: "resolved",
+        reviewed_by: user?.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", reportId);
+
+    toast({ title: `User suspended for ${days} days and report resolved` });
+    setReportSuspendReason("");
+    setReportSuspendDays("");
+    fetchData();
+  };
+
+  // Get the admin assigned to current moderator
+  const getMyAdmin = () => {
+    if (!user) return null;
+    const assignment = adminAssignments.find(a => a.moderator_user_id === user.id);
+    return assignment ? { id: assignment.admin_user_id, username: assignment.admin?.username } : null;
   };
 
   const getUserIdByUsername = async (username: string) => {
@@ -833,7 +989,7 @@ const AdminDashboard = () => {
     );
   }
 
-  if (!isAdmin && !isOwner) return null;
+  if (!isAdmin && !isOwner && !isModerator) return null;
 
   return (
     <div className="min-h-screen gradient-surface">
@@ -1254,6 +1410,20 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
+            {/* Moderator info banner */}
+            {isModerator && !isAdmin && !isOwner && (
+              <div className="glass rounded-xl p-4 border border-green-500/30 bg-green-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-green-400" />
+                  <span className="font-medium text-green-400">Moderator View</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  You can see reports for your assigned genres: {myGenres.length > 0 ? myGenres.join(", ") : "None assigned yet"}.
+                  {getMyAdmin() && <> Your admin is <span className="text-primary">@{getMyAdmin()?.username}</span>.</>}
+                </p>
+              </div>
+            )}
+
             <div className="glass rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
@@ -1261,88 +1431,285 @@ const AdminDashboard = () => {
                     <TableHead>Reporter</TableHead>
                     <TableHead>Reported User</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Genre</TableHead>
                     <TableHead>Reason</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Handled By</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reports.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No reports yet
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    reports.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>
-                          @{r.reporter?.username || "Unknown"}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          @{r.reported_user?.username || "Unknown"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{r.content_type}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{r.reason}</p>
-                            {r.description && (
-                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {r.description}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              r.status === "pending"
-                                ? "destructive"
-                                : r.status === "resolved"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {r.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(r.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {r.status === "pending" && (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResolveReport(r.id, "resolved")
-                                }
-                                className="text-green-500"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Resolve
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResolveReport(r.id, "dismissed")
-                                }
-                                className="text-muted-foreground"
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Dismiss
-                              </Button>
-                            </div>
-                          )}
+                  {(() => {
+                    // Filter reports based on role
+                    const visibleReports = isModerator && !isAdmin && !isOwner
+                      ? reports.filter(r => r.genre && myGenres.includes(r.genre))
+                      : reports;
+
+                    return visibleReports.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          {isModerator && !isAdmin && !isOwner 
+                            ? "No reports in your assigned genres" 
+                            : "No reports yet"}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    ) : (
+                      visibleReports.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell>
+                            @{r.reporter?.username || "Unknown"}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            @{r.reported_user?.username || "Unknown"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{r.content_type}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {r.genre ? (
+                              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                {r.genre}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{r.reason}</p>
+                              {r.description && (
+                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                  {r.description}
+                                </p>
+                              )}
+                              {r.escalation_notes && (
+                                <p className="text-xs text-orange-400 mt-1">
+                                  Escalation: {r.escalation_notes}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                variant={
+                                  r.status === "pending"
+                                    ? "destructive"
+                                    : r.status === "resolved"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {r.status}
+                              </Badge>
+                              {r.escalated_at && (
+                                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
+                                  Escalated
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs space-y-1">
+                              {r.moderator?.username && (
+                                <p className="text-green-400">
+                                  Mod: @{r.moderator.username}
+                                </p>
+                              )}
+                              {r.escalated_to_user?.username && (
+                                <p className="text-orange-400">
+                                  → @{r.escalated_to_user.username}
+                                </p>
+                              )}
+                              {r.reviewed_by_user?.username && (
+                                <p className="text-blue-400">
+                                  Final: @{r.reviewed_by_user.username}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-col gap-2 items-end">
+                              {/* Moderator actions */}
+                              {isModerator && !isAdmin && !isOwner && r.status === "pending" && (
+                                <>
+                                  {!r.moderator_id && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleModeratorReview(r.id)}
+                                      className="text-green-500"
+                                    >
+                                      <Eye className="w-4 h-4 mr-1" />
+                                      Mark Reviewed
+                                    </Button>
+                                  )}
+                                  {getMyAdmin() && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-orange-500"
+                                        >
+                                          <ArrowUpRight className="w-4 h-4 mr-1" />
+                                          Escalate
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Escalate to @{getMyAdmin()?.username}
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Add notes about why this needs admin attention.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <Textarea
+                                          placeholder="Escalation notes (e.g., severity, recommended action)..."
+                                          value={escalationNotes}
+                                          onChange={(e) => setEscalationNotes(e.target.value)}
+                                          className="mt-2"
+                                        />
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel onClick={() => setEscalationNotes("")}>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleEscalateReport(r.id, getMyAdmin()!.id)}
+                                            className="bg-orange-600 hover:bg-orange-700"
+                                          >
+                                            Escalate
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Admin/Owner actions */}
+                              {(isOwner || isAdmin) && r.status === "pending" && (
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleResolveReport(r.id, "resolved")}
+                                    className="text-green-500"
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    Resolve
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleResolveReport(r.id, "dismissed")}
+                                    className="text-muted-foreground"
+                                  >
+                                    <XCircle className="w-4 h-4 mr-1" />
+                                    Dismiss
+                                  </Button>
+                                  
+                                  {/* Ban from report */}
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-500"
+                                      >
+                                        <Ban className="w-4 h-4 mr-1" />
+                                        Ban
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          Ban @{r.reported_user?.username}?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently ban the user and resolve this report.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <Textarea
+                                        placeholder="Reason for ban..."
+                                        value={reportBanReason}
+                                        onChange={(e) => setReportBanReason(e.target.value)}
+                                        className="mt-2"
+                                      />
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => setReportBanReason("")}>
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleBanFromReport(r.id, r.reported_user_id)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Ban User
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+
+                                  {/* Suspend from report */}
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-orange-500"
+                                      >
+                                        <Clock className="w-4 h-4 mr-1" />
+                                        Suspend
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          Suspend @{r.reported_user?.username}?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Temporarily suspend this user and resolve the report.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <div className="space-y-3 mt-2">
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          placeholder="Number of days..."
+                                          value={reportSuspendDays}
+                                          onChange={(e) => setReportSuspendDays(e.target.value)}
+                                        />
+                                        <Textarea
+                                          placeholder="Reason for suspension..."
+                                          value={reportSuspendReason}
+                                          onChange={(e) => setReportSuspendReason(e.target.value)}
+                                        />
+                                      </div>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => {
+                                          setReportSuspendReason("");
+                                          setReportSuspendDays("");
+                                        }}>
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleSuspendFromReport(r.id, r.reported_user_id)}
+                                          className="bg-orange-600 hover:bg-orange-700"
+                                        >
+                                          Suspend User
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    );
+                  })()}
                 </TableBody>
               </Table>
             </div>
