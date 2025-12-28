@@ -369,8 +369,12 @@ export type Database = {
           content_type: string
           created_at: string
           description: string | null
+          escalated_at: string | null
+          escalated_to: string | null
+          escalation_notes: string | null
           genre: string | null
           id: string
+          moderator_id: string | null
           reason: string
           reported_user_id: string
           reporter_id: string | null
@@ -383,8 +387,12 @@ export type Database = {
           content_type: string
           created_at?: string
           description?: string | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_notes?: string | null
           genre?: string | null
           id?: string
+          moderator_id?: string | null
           reason: string
           reported_user_id: string
           reporter_id?: string | null
@@ -397,8 +405,12 @@ export type Database = {
           content_type?: string
           created_at?: string
           description?: string | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_notes?: string | null
           genre?: string | null
           id?: string
+          moderator_id?: string | null
           reason?: string
           reported_user_id?: string
           reporter_id?: string | null
@@ -507,6 +519,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_moderator_for_genre: {
+        Args: { _genre: string; _user_id: string }
         Returns: boolean
       }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
