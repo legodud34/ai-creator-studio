@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -243,6 +243,42 @@ const Profile = () => {
     toast({ title: `Made ${!currentValue ? "public" : "private"}` });
   };
 
+  const handleDownloadImage = async (img: ContentItem) => {
+    try {
+      const response = await fetch(img.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `afterglow-${img.id}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded!", description: "Image saved to your device." });
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadVideo = async (vid: ContentItem) => {
+    try {
+      const response = await fetch(vid.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `afterglow-${vid.id}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded!", description: "Video saved to your device." });
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen gradient-surface flex items-center justify-center">
@@ -450,6 +486,13 @@ const Profile = () => {
                     <p className="text-xs text-foreground/70 line-clamp-1">{img.prompt}</p>
                     <div className="flex items-center gap-3">
                       <LikeButton imageId={img.id} />
+                      <button
+                        onClick={() => handleDownloadImage(img)}
+                        className="p-2 rounded-full hover:bg-muted transition-colors"
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -493,6 +536,13 @@ const Profile = () => {
                     <p className="text-sm text-foreground/70 line-clamp-1">{vid.prompt}</p>
                     <div className="flex items-center gap-3">
                       <LikeButton videoId={vid.id} />
+                      <button
+                        onClick={() => handleDownloadVideo(vid)}
+                        className="p-2 rounded-full hover:bg-muted transition-colors"
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                      </button>
                       <button
                         onClick={() => setSelectedVideo(vid)}
                         className="text-sm text-muted-foreground hover:text-primary transition-colors"
