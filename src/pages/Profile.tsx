@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users, Download, LogOut } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users, Download, LogOut, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,9 @@ const Profile = () => {
   const [isVerified, setIsVerified] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOwnerRole, setIsOwnerRole] = useState(false);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState("");
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -253,6 +256,45 @@ const Profile = () => {
     }
 
     toast({ title: `Made ${!currentValue ? "public" : "private"}` });
+  };
+
+  const handleSaveTitle = async (type: "image" | "video", id: string) => {
+    setIsSavingTitle(true);
+    const table = type === "image" ? "images" : "videos";
+    
+    const { error } = await supabase
+      .from(table)
+      .update({ title: editingTitleValue || null })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Failed to save title",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      if (type === "image") {
+        setImages(prev => prev.map(img => img.id === id ? { ...img, title: editingTitleValue || null } : img));
+      } else {
+        setVideos(prev => prev.map(vid => vid.id === id ? { ...vid, title: editingTitleValue || null } : vid));
+      }
+      toast({ title: "Title saved!" });
+    }
+    
+    setEditingTitleId(null);
+    setEditingTitleValue("");
+    setIsSavingTitle(false);
+  };
+
+  const startEditingTitle = (id: string, currentTitle: string | null) => {
+    setEditingTitleId(id);
+    setEditingTitleValue(currentTitle || "");
+  };
+
+  const cancelEditingTitle = () => {
+    setEditingTitleId(null);
+    setEditingTitleValue("");
   };
 
   const handleDownloadImage = async (img: ContentItem) => {
@@ -528,7 +570,48 @@ const Profile = () => {
                     )}
                   </div>
                   <div className="p-2 space-y-2">
-                    <p className="text-xs text-foreground/70 line-clamp-1">{img.title || img.prompt}</p>
+                    {isOwnProfile && editingTitleId === img.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingTitleValue}
+                          onChange={(e) => setEditingTitleValue(e.target.value)}
+                          placeholder="Enter title..."
+                          className="flex-1 text-xs bg-secondary/50 border border-border/50 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveTitle("image", img.id);
+                            if (e.key === "Escape") cancelEditingTitle();
+                          }}
+                        />
+                        <button
+                          onClick={() => handleSaveTitle("image", img.id)}
+                          disabled={isSavingTitle}
+                          className="p-1 rounded hover:bg-muted transition-colors text-primary"
+                        >
+                          {isSavingTitle ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        </button>
+                        <button
+                          onClick={cancelEditingTitle}
+                          className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 group">
+                        <p className="text-xs text-foreground/70 line-clamp-1 flex-1">{img.title || img.prompt}</p>
+                        {isOwnProfile && (
+                          <button
+                            onClick={() => startEditingTitle(img.id, img.title)}
+                            className="p-1 rounded hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                            title="Edit title"
+                          >
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3">
                       <LikeButton imageId={img.id} />
                       <button
@@ -578,7 +661,48 @@ const Profile = () => {
                     )}
                   </div>
                   <div className="p-3 space-y-3">
-                    <p className="text-sm text-foreground/70 line-clamp-1">{vid.title || vid.prompt}</p>
+                    {isOwnProfile && editingTitleId === vid.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingTitleValue}
+                          onChange={(e) => setEditingTitleValue(e.target.value)}
+                          placeholder="Enter title..."
+                          className="flex-1 text-sm bg-secondary/50 border border-border/50 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveTitle("video", vid.id);
+                            if (e.key === "Escape") cancelEditingTitle();
+                          }}
+                        />
+                        <button
+                          onClick={() => handleSaveTitle("video", vid.id)}
+                          disabled={isSavingTitle}
+                          className="p-1 rounded hover:bg-muted transition-colors text-primary"
+                        >
+                          {isSavingTitle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={cancelEditingTitle}
+                          className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 group">
+                        <p className="text-sm text-foreground/70 line-clamp-1 flex-1">{vid.title || vid.prompt}</p>
+                        {isOwnProfile && (
+                          <button
+                            onClick={() => startEditingTitle(vid.id, vid.title)}
+                            className="p-1 rounded hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                            title="Edit title"
+                          >
+                            <Pencil className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3">
                       <LikeButton videoId={vid.id} />
                       <button
