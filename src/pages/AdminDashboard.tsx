@@ -52,6 +52,7 @@ interface UserProfile {
   created_at: string;
   is_verified?: boolean;
   is_admin?: boolean;
+  is_moderator?: boolean;
   is_owner?: boolean;
   is_banned?: boolean;
 }
@@ -76,6 +77,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -100,7 +102,7 @@ const AdminDashboard = () => {
         .eq("user_id", user.id);
 
       const roles = roleData?.map(r => r.role) || [];
-      const hasAdminAccess = roles.includes("admin") || roles.includes("owner");
+      const hasAdminAccess = roles.includes("admin") || roles.includes("owner") || roles.includes("moderator");
       
       if (!hasAdminAccess) {
         toast({
@@ -113,6 +115,7 @@ const AdminDashboard = () => {
       }
 
       setIsAdmin(roles.includes("admin"));
+      setIsModerator(roles.includes("moderator"));
       setIsOwner(roles.includes("owner"));
       await fetchData();
       setIsLoading(false);
@@ -130,16 +133,18 @@ const AdminDashboard = () => {
 
     if (profiles) {
       // Fetch verification and ban status for each user
-      const [{ data: verifiedUsers }, { data: adminUsers }, { data: ownerUsers }, { data: bannedUsers }] =
+      const [{ data: verifiedUsers }, { data: adminUsers }, { data: moderatorUsers }, { data: ownerUsers }, { data: bannedUsers }] =
         await Promise.all([
           supabase.from("verified_users").select("user_id"),
           supabase.from("user_roles").select("user_id").eq("role", "admin"),
+          supabase.from("user_roles").select("user_id").eq("role", "moderator"),
           supabase.from("user_roles").select("user_id").eq("role", "owner"),
           supabase.from("banned_users").select("user_id"),
         ]);
 
       const verifiedIds = new Set(verifiedUsers?.map((v) => v.user_id) || []);
       const adminIds = new Set(adminUsers?.map((a) => a.user_id) || []);
+      const moderatorIds = new Set(moderatorUsers?.map((m) => m.user_id) || []);
       const ownerIds = new Set(ownerUsers?.map((o) => o.user_id) || []);
       const bannedIds = new Set(bannedUsers?.map((b) => b.user_id) || []);
 
@@ -149,6 +154,7 @@ const AdminDashboard = () => {
           ...p,
           is_verified: isOwner || verifiedIds.has(p.id), // Owners are always verified
           is_admin: adminIds.has(p.id),
+          is_moderator: moderatorIds.has(p.id),
           is_owner: isOwner,
           is_banned: bannedIds.has(p.id),
         };
@@ -252,7 +258,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleGrantRole = async (userId: string, role: "admin" | "owner") => {
+  const handleGrantRole = async (userId: string, role: "admin" | "owner" | "moderator") => {
     const { error } = await supabase.from("user_roles").insert({
       user_id: userId,
       role,
@@ -270,7 +276,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleRevokeRole = async (userId: string, role: "admin" | "owner") => {
+  const handleRevokeRole = async (userId: string, role: "admin" | "owner" | "moderator") => {
     const { error } = await supabase
       .from("user_roles")
       .delete()
@@ -391,12 +397,14 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        <Tabs defaultValue="users" className="space-y-6">
+        <Tabs defaultValue={isModerator && !isAdmin && !isOwner ? "reports" : "users"} className="space-y-6">
           <TabsList className="glass">
-            <TabsTrigger value="users" className="gap-2">
-              <UserCheck className="w-4 h-4" />
-              Users
-            </TabsTrigger>
+            {(isOwner || isAdmin) && (
+              <TabsTrigger value="users" className="gap-2">
+                <UserCheck className="w-4 h-4" />
+                Users
+              </TabsTrigger>
+            )}
             <TabsTrigger value="reports" className="gap-2">
               <Flag className="w-4 h-4" />
               Reports
@@ -509,6 +517,11 @@ const AdminDashboard = () => {
                             </Badge>
                           )}
                           {u.is_admin && <Badge variant="secondary">Admin</Badge>}
+                          {u.is_moderator && (
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                              Moderator
+                            </Badge>
+                          )}
                           {u.is_verified && (
                             <Badge className="bg-blue-500/20 text-blue-400">
                               Verified
@@ -521,30 +534,35 @@ const AdminDashboard = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1 flex-wrap">
-                          {/* Verification */}
-                          {u.is_verified ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUnverifyUser(u.id)}
-                              className="text-muted-foreground"
-                            >
-                              <UserX className="w-4 h-4 mr-1" />
-                              Unverify
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleVerifyUser(u.id)}
-                              className="text-blue-500"
-                            >
-                              <UserCheck className="w-4 h-4 mr-1" />
-                              Verify
-                            </Button>
+                          {/* Verification - Only for admins and owners */}
+                          {(isOwner || isAdmin) && (
+                            <>
+                              {u.is_verified ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUnverifyUser(u.id)}
+                                  className="text-muted-foreground"
+                                  disabled={u.is_owner}
+                                >
+                                  <UserX className="w-4 h-4 mr-1" />
+                                  Unverify
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleVerifyUser(u.id)}
+                                  className="text-blue-500"
+                                >
+                                  <UserCheck className="w-4 h-4 mr-1" />
+                                  Verify
+                                </Button>
+                              )}
+                            </>
                           )}
 
-                          {/* Role Management - Only for owners */}
+                          {/* Admin Role Management - Only for owners */}
                           {isOwner && !u.is_owner && (
                             <>
                               {u.is_admin ? (
@@ -571,18 +589,47 @@ const AdminDashboard = () => {
                             </>
                           )}
 
-                          {/* Ban/Unban */}
-                          {u.is_banned ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUnbanUser(u.id)}
-                              className="text-green-500"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Unban
-                            </Button>
-                          ) : (
+                          {/* Moderator Role Management - For owners and admins */}
+                          {(isOwner || isAdmin) && !u.is_owner && !u.is_admin && (
+                            <>
+                              {u.is_moderator ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRevokeRole(u.id, "moderator")}
+                                  className="text-green-400"
+                                >
+                                  <ShieldMinus className="w-4 h-4 mr-1" />
+                                  Remove Mod
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGrantRole(u.id, "moderator")}
+                                  className="text-green-500"
+                                >
+                                  <ShieldPlus className="w-4 h-4 mr-1" />
+                                  Make Mod
+                                </Button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Ban/Unban - Only for admins and owners */}
+                          {(isOwner || isAdmin) && (
+                            <>
+                              {u.is_banned ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUnbanUser(u.id)}
+                                  className="text-green-500"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Unban
+                                </Button>
+                              ) : (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -626,6 +673,8 @@ const AdminDashboard = () => {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                          )}
+                            </>
                           )}
                         </div>
                       </TableCell>
