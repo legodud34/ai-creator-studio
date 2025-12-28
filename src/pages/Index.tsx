@@ -9,6 +9,7 @@ import VideoGenerator from "@/components/VideoGenerator";
 import TrendingSection from "@/components/TrendingSection";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 import SearchBar from "@/components/SearchBar";
+import OnboardingDialog from "@/components/OnboardingDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -35,6 +36,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen gradient-surface">
+      <OnboardingDialog />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-primary/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-accent/10 rounded-full blur-[100px]" />
@@ -172,8 +174,16 @@ const Index = () => {
         </Tabs>
 
         {/* Footer */}
-        <footer className="mt-12 md:mt-16 text-center text-xs md:text-sm text-muted-foreground pb-6">
+        <footer className="mt-12 md:mt-16 text-center text-xs md:text-sm text-muted-foreground pb-6 space-y-2">
           <p>Powered by AI</p>
+          <div className="flex justify-center gap-4">
+            <Link to="/terms" className="hover:text-foreground transition-colors">
+              Terms of Service
+            </Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </footer>
       </div>
     </div>

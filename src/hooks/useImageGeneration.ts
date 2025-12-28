@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGallery } from "@/contexts/GalleryContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRateLimit, RATE_LIMITS } from "@/hooks/useRateLimit";
 
 export interface GeneratedImage {
   id: string;
@@ -16,6 +17,7 @@ export const useImageGeneration = () => {
   const { images, addImage, deleteImage } = useGallery();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkRateLimit, recordAttempt } = useRateLimit("image", RATE_LIMITS.imageGeneration);
 
   const generateImage = async (prompt: string) => {
     if (!prompt.trim()) {
@@ -36,7 +38,19 @@ export const useImageGeneration = () => {
       return null;
     }
 
+    // Check rate limit
+    const { allowed, remainingAttempts, resetIn } = checkRateLimit();
+    if (!allowed) {
+      toast({
+        title: "Rate limit reached",
+        description: `You've used all your generations. Try again in ${resetIn} seconds.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     setIsGenerating(true);
+    recordAttempt(); // Record the attempt for rate limiting
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-image", {

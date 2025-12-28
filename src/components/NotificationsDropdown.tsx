@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, forwardRef } from "react";
 import { Bell, Heart, MessageCircle, UserPlus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +28,7 @@ interface Notification {
   };
 }
 
-const NotificationsDropdown = () => {
+const NotificationsDropdown = forwardRef<HTMLDivElement>((_, ref) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -135,76 +134,80 @@ const NotificationsDropdown = () => {
   if (!user) return null;
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="glass border-border/50 h-9 relative">
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full text-xs flex items-center justify-center text-primary-foreground font-medium">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 glass border-border/50">
-        <div className="flex items-center justify-between px-3 py-2">
-          <span className="font-semibold">Notifications</span>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="h-auto py-1 px-2 text-xs"
-            >
-              <Check className="w-3 h-3 mr-1" />
-              Mark all read
-            </Button>
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        
-        {notifications.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground text-sm">
-            No notifications yet
-          </div>
-        ) : (
-          <div className="max-h-[400px] overflow-y-auto">
-            {notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`px-3 py-3 cursor-pointer ${!notification.is_read ? "bg-primary/5" : ""}`}
-                onClick={() => markAsRead(notification.id)}
+    <div ref={ref}>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="glass border-border/50 h-9 relative">
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full text-xs flex items-center justify-center text-primary-foreground font-medium">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80 glass border-border/50">
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="font-semibold">Notifications</span>
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={markAllAsRead}
+                className="h-auto py-1 px-2 text-xs"
               >
-                <div className="flex items-start gap-3 w-full">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={notification.actor.avatar_url || undefined} />
-                    <AvatarFallback className="text-xs">
-                      {notification.actor.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {getNotificationIcon(notification.type)}
-                      <span className="text-sm">
-                        <span className="font-medium">{notification.actor.username}</span>{" "}
-                        {getNotificationText(notification)}
+                <Check className="w-3 h-3 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
+          <DropdownMenuSeparator />
+          
+          {notifications.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              No notifications yet
+            </div>
+          ) : (
+            <div className="max-h-[400px] overflow-y-auto">
+              {notifications.map((notification) => (
+                <DropdownMenuItem
+                  key={notification.id}
+                  className={`px-3 py-3 cursor-pointer ${!notification.is_read ? "bg-primary/5" : ""}`}
+                  onClick={() => markAsRead(notification.id)}
+                >
+                  <div className="flex items-start gap-3 w-full">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={notification.actor.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {notification.actor.username.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {getNotificationIcon(notification.type)}
+                        <span className="text-sm">
+                          <span className="font-medium">{notification.actor.username}</span>{" "}
+                          {getNotificationText(notification)}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                    </span>
+                    {!notification.is_read && (
+                      <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                    )}
                   </div>
-                  {!notification.is_read && (
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </div>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                </DropdownMenuItem>
+              ))}
+            </div>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
-};
+});
+
+NotificationsDropdown.displayName = "NotificationsDropdown";
 
 export default NotificationsDropdown;
