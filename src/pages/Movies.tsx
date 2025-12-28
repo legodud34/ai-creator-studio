@@ -9,6 +9,7 @@ import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { GenreFilter, Genre } from "@/components/GenreFilter";
 import { Badge } from "@/components/ui/badge";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import {
   Dialog,
   DialogContent,
@@ -165,20 +166,15 @@ const Movies = () => {
                 className="glass rounded-2xl overflow-hidden cursor-pointer group hover:ring-2 hover:ring-primary/50 transition-all"
                 onClick={() => setSelectedVideo(video)}
               >
-                <div className="relative aspect-[21/9] bg-muted">
-                  <video
+                <div className="relative">
+                  <VideoThumbnail
                     src={video.url}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    onMouseEnter={(e) => e.currentTarget.play()}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.pause();
-                      e.currentTarget.currentTime = 0;
-                    }}
+                    aspectRatio="aspect-[21/9]"
+                    showPlayButton={true}
+                    playOnHover={true}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
                     <h3 className="text-white text-xl md:text-2xl font-bold line-clamp-2 mb-2">{video.prompt}</h3>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
@@ -203,11 +199,6 @@ const Movies = () => {
                         <MessageCircle className="w-4 h-4" />
                         {commentCounts[video.id] || 0}
                       </span>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Play className="w-12 h-12 text-white ml-1" />
                     </div>
                   </div>
                 </div>
