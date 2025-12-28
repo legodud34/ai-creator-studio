@@ -756,6 +756,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteMonthlyReport = async (reportId: string) => {
+    const { error } = await supabase
+      .from("admin_monthly_reports")
+      .delete()
+      .eq("id", reportId);
+
+    if (error) {
+      toast({ title: "Failed to delete report", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Monthly report deleted" });
+      fetchData();
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -1553,9 +1567,35 @@ const AdminDashboard = () => {
                               {getMonthName(report.report_month)} {report.report_year}
                             </Badge>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            Submitted {new Date(report.created_at).toLocaleDateString()}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              Submitted {new Date(report.created_at).toLocaleDateString()}
+                            </span>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Monthly Report</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this report from @{report.admin?.username} for {getMonthName(report.report_month)} {report.report_year}? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteMonthlyReport(report.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                           <div className="bg-green-500/10 rounded-lg p-3 text-center">
