@@ -363,6 +363,38 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleGrantModByUsername = async () => {
+    if (!isOwner) return;
+    setIsRoleUpdating(true);
+    try {
+      const targetId = await getUserIdByUsername(roleUsername);
+      if (!targetId) {
+        toast({ title: "User not found", description: "Check the username and try again.", variant: "destructive" });
+        return;
+      }
+      await handleGrantRole(targetId, "moderator");
+      setRoleUsername("");
+    } finally {
+      setIsRoleUpdating(false);
+    }
+  };
+
+  const handleRevokeModByUsername = async () => {
+    if (!isOwner) return;
+    setIsRoleUpdating(true);
+    try {
+      const targetId = await getUserIdByUsername(roleUsername);
+      if (!targetId) {
+        toast({ title: "User not found", description: "Check the username and try again.", variant: "destructive" });
+        return;
+      }
+      await handleRevokeRole(targetId, "moderator");
+      setRoleUsername("");
+    } finally {
+      setIsRoleUpdating(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -419,15 +451,15 @@ const AdminDashboard = () => {
           <TabsContent value="users" className="space-y-4">
             {isOwner && (
               <section className="glass rounded-xl p-4">
-                <h2 className="text-sm font-semibold mb-3">Add / Remove Admin</h2>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <h2 className="text-sm font-semibold mb-3">Manage Roles</h2>
+                <div className="flex flex-col gap-3">
                   <Input
                     value={roleUsername}
                     onChange={(e) => setRoleUsername(e.target.value)}
                     placeholder="Username (e.g. @jane)"
                     className="glass"
                   />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="secondary"
@@ -448,10 +480,29 @@ const AdminDashboard = () => {
                       {isRoleUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldMinus className="w-4 h-4" />}
                       Remove Admin
                     </Button>
+                    <Button
+                      type="button"
+                      onClick={handleGrantModByUsername}
+                      disabled={isRoleUpdating || !roleUsername.trim()}
+                      className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {isRoleUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldPlus className="w-4 h-4" />}
+                      Make Mod
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleRevokeModByUsername}
+                      disabled={isRoleUpdating || !roleUsername.trim()}
+                      className="gap-2 border-green-500/50 text-green-400 hover:bg-green-500/10"
+                    >
+                      {isRoleUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldMinus className="w-4 h-4" />}
+                      Remove Mod
+                    </Button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Note: Row buttons only show for non-owner users; this box lets you manage roles even if the user list only contains you.
+                <p className="text-xs text-muted-foreground mt-3">
+                  Enter a username to add or remove admin/moderator roles.
                 </p>
               </section>
             )}
