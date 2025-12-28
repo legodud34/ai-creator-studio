@@ -4,15 +4,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Video, Loader2, Download, Trash2, Share2, Clock } from "lucide-react";
-import { useVideoGeneration } from "@/hooks/useVideoGeneration";
+import { useVideoGeneration, GeneratedVideo } from "@/hooks/useVideoGeneration";
 import { useToast } from "@/hooks/use-toast";
-import { GalleryVideo } from "@/contexts/GalleryContext";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
   const [durationValue, setDurationValue] = useState("5");
   const [durationUnit, setDurationUnit] = useState<"seconds" | "minutes">("seconds");
-  const { isGenerating, progress, videos, generateVideo, deleteVideo } = useVideoGeneration();
+  const [latestVideo, setLatestVideo] = useState<GeneratedVideo | null>(null);
+  const { isGenerating, progress, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -28,15 +28,19 @@ const VideoGenerator = () => {
       return;
     }
     
-    await generateVideo(prompt, "16:9", durationSeconds);
+    const result = await generateVideo(prompt, "16:9", durationSeconds);
+    if (result) {
+      setLatestVideo(result);
+    }
     setPrompt("");
   };
 
-  const handleDownload = async (video: GalleryVideo) => {
+  const handleDownload = async () => {
+    if (!latestVideo) return;
     try {
-      const response = await fetch(video.url);
+      const response = await fetch(latestVideo.videoUrl);
       const blob = await response.blob();
-      const file = new File([blob], `ai-video-${video.id}.mp4`, { type: 'video/mp4' });
+      const file = new File([blob], `ai-video-${latestVideo.id}.mp4`, { type: 'video/mp4' });
 
       // On mobile, use share API to allow saving to photos/files
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -53,7 +57,7 @@ const VideoGenerator = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `ai-video-${video.id}.mp4`;
+        link.download = `ai-video-${latestVideo.id}.mp4`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -76,29 +80,30 @@ const VideoGenerator = () => {
     }
   };
 
-  const handleShare = async (video: GalleryVideo) => {
+  const handleShare = async () => {
+    if (!latestVideo) return;
     try {
-      const response = await fetch(video.url);
+      const response = await fetch(latestVideo.videoUrl);
       const blob = await response.blob();
-      const file = new File([blob], `ai-video-${video.id}.mp4`, { type: 'video/mp4' });
+      const file = new File([blob], `ai-video-${latestVideo.id}.mp4`, { type: 'video/mp4' });
 
       // Try sharing as file first (mobile)
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: "Check out this AI-generated video!",
-          text: video.prompt,
+          text: latestVideo.prompt,
         });
       } else if (navigator.share) {
         // Fallback to URL share
         await navigator.share({
           title: "Check out this AI-generated video!",
-          text: video.prompt,
-          url: video.url,
+          text: latestVideo.prompt,
+          url: latestVideo.videoUrl,
         });
       } else {
         // Desktop fallback - copy URL
-        await navigator.clipboard.writeText(video.url);
+        await navigator.clipboard.writeText(latestVideo.videoUrl);
         toast({
           title: "Link copied!",
           description: "Video URL copied to clipboard.",
@@ -114,6 +119,12 @@ const VideoGenerator = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDelete = async () => {
+    if (!latestVideo) return;
+    await deleteVideo(latestVideo.id);
+    setLatestVideo(null);
   };
 
   return (
@@ -216,66 +227,62 @@ const VideoGenerator = () => {
         )}
       </div>
 
-      {/* Gallery Section */}
-      {videos.length > 0 && (
+      {/* Latest Video Section */}
+      {latestVideo && (
         <div className="space-y-4">
-          <h3 className="text-base md:text-lg font-semibold text-foreground/80">Your Videos</h3>
+          <h3 className="text-base md:text-lg font-semibold text-foreground/80">Your Creation</h3>
 
-          <div className="grid grid-cols-1 gap-4 md:gap-6">
-            {videos.map((video) => (
-              <div key={video.id} className="glass rounded-2xl overflow-hidden">
-                <div className="relative aspect-video bg-muted">
-                  <video
-                    src={video.url}
-                    controls
-                    className="w-full h-full object-contain"
-                    playsInline
-                  />
-                </div>
+          <div className="glass rounded-2xl overflow-hidden">
+            <div className="relative aspect-video bg-muted">
+              <video
+                src={latestVideo.videoUrl}
+                controls
+                className="w-full h-full object-contain"
+                playsInline
+              />
+            </div>
 
-                <div className="p-4 space-y-3">
-                  <p className="text-sm text-foreground/80 line-clamp-2">{video.prompt}</p>
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-foreground/80 line-clamp-2">{latestVideo.prompt}</p>
 
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleDownload(video)}
-                      className="flex-1 h-10"
-                    >
-                      <Download className="w-4 h-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleShare(video)}
-                      className="flex-1 h-10"
-                    >
-                      <Share2 className="w-4 h-4 mr-1" />
-                      Share
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => deleteVideo(video.id)}
-                      className="h-10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleDownload}
+                  className="flex-1 h-10"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleShare}
+                  className="flex-1 h-10"
+                >
+                  <Share2 className="w-4 h-4 mr-1" />
+                  Share
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="h-10"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Empty State */}
-      {videos.length === 0 && !isGenerating && (
+      {!latestVideo && !isGenerating && (
         <div className="text-center py-8 md:py-12 text-muted-foreground">
           <Video className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-sm md:text-base">Your generated videos will appear here</p>
+          <p className="text-sm md:text-base">Your generated video will appear here</p>
           <p className="text-xs mt-2 opacity-70">Powered by Luma AI</p>
         </div>
       )}
