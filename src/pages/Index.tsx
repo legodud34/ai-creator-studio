@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Video, Compass, LogIn, LogOut, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import TrendingSection from "@/components/TrendingSection";
@@ -14,12 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-
-  const handleLogout = async () => {
-    await signOut();
-  };
 
   useEffect(() => {
     const checkAdminOrOwner = async () => {
@@ -73,15 +69,6 @@ const Index = () => {
                     </Button>
                   </Link>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="glass border-destructive/50 text-destructive hover:border-destructive hover:bg-destructive/10 h-9"
-                >
-                  <LogOut className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Log Out</span>
-                </Button>
               </>
             ) : (
               <Link to="/auth">
