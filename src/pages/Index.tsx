@@ -183,6 +183,9 @@ const Index = () => {
             <Link to="/privacy" className="hover:text-foreground transition-colors">
               Privacy Policy
             </Link>
+            <Link to="/contact" className="hover:text-foreground transition-colors">
+              Contact
+            </Link>
           </div>
         </footer>
       </div>
