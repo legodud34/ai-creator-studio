@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
@@ -13,6 +14,7 @@ const signUpSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(30, "Username must be less than 30 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  agreedToTerms: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms of Service and Privacy Policy" }) }),
 });
 
 const signInSchema = z.object({
@@ -25,26 +27,31 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string; agreedToTerms?: string }>({});
 
   const { signIn, signUp, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the intended destination from location state, default to "/"
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate("/");
+      navigate(from, { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, from]);
 
   const validateForm = () => {
     setErrors({});
     
     try {
       if (isSignUp) {
-        signUpSchema.parse({ username, email, password });
+        signUpSchema.parse({ username, email, password, agreedToTerms });
       } else {
         signInSchema.parse({ email, password });
       }
@@ -92,7 +99,7 @@ const Auth = () => {
             title: "Welcome to Afterglow!",
             description: "Your account has been created.",
           });
-          navigate("/");
+          navigate(from, { replace: true });
         }
       } else {
         const { error } = await signIn(email, password);
@@ -107,7 +114,7 @@ const Auth = () => {
             title: "Welcome back!",
             description: "Successfully signed in.",
           });
-          navigate("/");
+          navigate(from, { replace: true });
         }
       }
     } finally {
@@ -202,6 +209,36 @@ const Auth = () => {
               {isSignUp && <PasswordStrengthIndicator password={password} />}
             </div>
 
+            {isSignUp && (
+              <div className="space-y-2">
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="terms"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    disabled={isLoading}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="terms"
+                    className="text-sm text-muted-foreground leading-relaxed cursor-pointer"
+                  >
+                    I agree to the{" "}
+                    <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy" className="text-primary hover:underline" target="_blank">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+                {errors.agreedToTerms && (
+                  <p className="text-xs text-destructive">{errors.agreedToTerms}</p>
+                )}
+              </div>
+            )}
+
             <Button
               type="submit"
               className="w-full gradient-primary text-primary-foreground h-11"
@@ -225,6 +262,7 @@ const Auth = () => {
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setErrors({});
+                setAgreedToTerms(false);
               }}
               className="text-primary hover:underline font-medium"
               disabled={isLoading}
