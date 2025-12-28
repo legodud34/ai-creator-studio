@@ -311,7 +311,7 @@ const AdminDashboard = () => {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!isAdmin && !isOwner) return null;
 
   return (
     <div className="min-h-screen gradient-surface">
