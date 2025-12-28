@@ -20,10 +20,10 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
   };
 
   const colorClasses = {
-    verified: "text-blue-500 fill-blue-500",
-    admin: "text-purple-500 fill-purple-500",
-    both: "text-amber-500 fill-amber-500",
-    owner: "text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]",
+    verified: "text-blue-500 fill-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.7)]",
+    admin: "text-purple-500 fill-purple-500 drop-shadow-[0_0_6px_rgba(168,85,247,0.7)]",
+    both: "text-amber-500 fill-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.7)]",
+    owner: "text-amber-400 fill-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]",
   };
 
   const tooltipText = {
@@ -33,13 +33,11 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
     owner: "Owner",
   };
 
-  const isOwner = type === "owner";
-
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={`inline-flex ${isOwner ? "animate-pulse" : ""}`}>
+          <span className="inline-flex animate-pulse">
             <BadgeCheck 
               className={`${colorClasses[type]} ${sizeClasses[size]} ${className}`}
             />
