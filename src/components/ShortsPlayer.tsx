@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
+import ShareButtons from "@/components/ShareButtons";
 import {
   Sheet,
   SheetContent,
@@ -230,6 +231,12 @@ export const ShortsPlayer = ({ videos, likeCounts, commentCounts }: ShortsPlayer
               </div>
             </SheetContent>
           </Sheet>
+
+          <ShareButtons 
+            url={`${window.location.origin}/shorts`} 
+            title={currentVideo.prompt.slice(0, 100)} 
+            compact 
+          />
 
           <button 
             className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center"

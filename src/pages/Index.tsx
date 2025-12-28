@@ -3,10 +3,13 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Mic, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Mic, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, BarChart3 } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
+import TrendingSection from "@/components/TrendingSection";
+import NotificationsDropdown from "@/components/NotificationsDropdown";
+import SearchBar from "@/components/SearchBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,15 +43,22 @@ const Index = () => {
 
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6 md:py-8">
         <header className="mb-8 md:mb-12">
-          <div className="flex justify-end gap-2 mb-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+            <SearchBar />
             <Link to="/explore">
               <Button variant="outline" size="sm" className="glass border-border/50 h-9">
                 <Compass className="w-4 h-4 mr-1" />
-                Explore
+                <span className="hidden sm:inline">Explore</span>
               </Button>
             </Link>
             {user ? (
               <>
+                <NotificationsDropdown />
+                <Link to="/analytics">
+                  <Button variant="outline" size="sm" className="glass border-border/50 h-9">
+                    <BarChart3 className="w-4 h-4" />
+                  </Button>
+                </Link>
                 <Link to={`/profile/${profile?.username}`}>
                   <Avatar className="w-9 h-9 border border-primary/50 hover:border-primary transition-colors cursor-pointer">
                     <AvatarImage src={profile?.avatar_url || undefined} />
@@ -139,6 +149,9 @@ const Index = () => {
             </p>
           </div>
         </header>
+
+        {/* Trending Section */}
+        <TrendingSection />
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
