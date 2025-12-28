@@ -1752,7 +1752,7 @@ const AdminDashboard = () => {
                   onChange={(e) => setAssignGenre(e.target.value)}
                   className="glass rounded-md border border-border/50 bg-secondary/50 px-3 py-2 text-sm"
                 >
-                  <option value="">Select Genre</option>
+                  <option value="" disabled>Select Genre</option>
                   {AVAILABLE_GENRES.map(g => (
                     <option key={g} value={g}>{g}</option>
                   ))}
