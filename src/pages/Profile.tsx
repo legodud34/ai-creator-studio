@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users, Download } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users, Download, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,7 @@ interface ContentItem {
 const Profile = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
-  const { user, profile: currentUserProfile, updateProfile, refreshProfile } = useAuth();
+  const { user, profile: currentUserProfile, updateProfile, refreshProfile, signOut } = useAuth();
   const { toast } = useToast();
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -411,15 +411,28 @@ const Profile = () => {
                     {profileData.bio || (isOwnProfile ? "No bio yet" : "")}
                   </p>
                   {isOwnProfile && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setIsEditing(true)}
-                      className="mt-2"
-                    >
-                      <Edit2 className="w-4 h-4 mr-1" />
-                      Edit bio
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" />
+                        Edit bio
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          await signOut();
+                          navigate("/");
+                        }}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <LogOut className="w-4 h-4 mr-1" />
+                        Log out
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
