@@ -18,21 +18,44 @@ const ImageGenerator = () => {
 
   const handleDownload = async (image: GalleryImage) => {
     try {
-      const link = document.createElement("a");
-      link.href = image.url;
-      link.download = `creative-ai-${image.id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+      // Fetch and convert to blob
+      const response = await fetch(image.url);
+      const blob = await response.blob();
+      const file = new File([blob], `ai-image-${image.id}.png`, { type: 'image/png' });
+
+      // On mobile, use share API to allow saving to photos
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Save Image',
+        });
+        toast({
+          title: "Saved!",
+          description: "Image saved to your photos.",
+        });
+      } else {
+        // Desktop fallback - trigger download
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `ai-image-${image.id}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Downloaded!",
+          description: "Image saved to your device.",
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // User cancelled
+      }
       toast({
-        title: "Downloaded!",
-        description: "Image saved to your device.",
-      });
-    } catch {
-      toast({
-        title: "Download failed",
-        description: "Could not download the image.",
+        title: "Save failed",
+        description: "Could not save the image.",
         variant: "destructive",
       });
     }
