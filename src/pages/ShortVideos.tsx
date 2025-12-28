@@ -7,12 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
+import { GenreFilter, Genre } from "@/components/GenreFilter";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface VideoWithProfile {
   id: string;
@@ -20,6 +22,7 @@ interface VideoWithProfile {
   prompt: string;
   created_at: string;
   duration_seconds: number | null;
+  genre: string | null;
   profiles: {
     id: string;
     username: string;
@@ -37,23 +40,30 @@ const ShortVideos = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoWithProfile | null>(null);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [selectedGenre, setSelectedGenre] = useState<Genre>("All");
 
   useEffect(() => {
     fetchVideos();
-  }, []);
+  }, [selectedGenre]);
 
   const fetchVideos = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("videos")
       .select(`
-        id, url, prompt, created_at, duration_seconds,
+        id, url, prompt, created_at, duration_seconds, genre,
         profiles!videos_user_id_fkey (id, username, avatar_url)
       `)
       .eq("is_public", true)
       .gt("duration_seconds", MIN_DURATION)
       .lte("duration_seconds", MAX_DURATION)
       .order("created_at", { ascending: false });
+
+    if (selectedGenre !== "All") {
+      query = query.eq("genre", selectedGenre);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       const formattedData = data.map((v: any) => ({
@@ -102,7 +112,7 @@ const ShortVideos = () => {
       </div>
 
       <div className="relative z-10 container max-w-6xl mx-auto px-4 py-6">
-        <header className="flex items-center gap-4 mb-8">
+        <header className="flex items-center gap-4 mb-6">
           <Link to="/">
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
@@ -114,6 +124,10 @@ const ShortVideos = () => {
           </div>
         </header>
 
+        <div className="mb-6">
+          <GenreFilter selectedGenre={selectedGenre} onGenreChange={setSelectedGenre} />
+        </div>
+
         {isLoading ? (
           <div className="text-center py-12">
             <Video className="w-12 h-12 mx-auto mb-4 opacity-50 animate-pulse" />
@@ -122,7 +136,11 @@ const ShortVideos = () => {
         ) : videos.length === 0 ? (
           <div className="text-center py-12">
             <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-muted-foreground">No short videos available yet</p>
+            <p className="text-muted-foreground">
+              {selectedGenre === "All" 
+                ? "No short videos available yet" 
+                : `No ${selectedGenre} videos found`}
+            </p>
             <p className="text-sm text-muted-foreground/70 mt-2">Videos between 5-10 minutes will appear here</p>
           </div>
         ) : (
@@ -149,11 +167,18 @@ const ShortVideos = () => {
                   <div className="absolute bottom-2 left-2 right-2">
                     <p className="text-white text-sm line-clamp-2">{video.prompt}</p>
                   </div>
-                  {video.duration_seconds && (
-                    <span className="absolute top-2 right-2 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
-                      {formatDuration(video.duration_seconds)}
-                    </span>
-                  )}
+                  <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+                    {video.genre && (
+                      <Badge variant="secondary" className="bg-black/60 text-white border-none">
+                        {video.genre}
+                      </Badge>
+                    )}
+                    {video.duration_seconds && (
+                      <span className="text-xs bg-black/60 text-white px-1.5 py-0.5 rounded ml-auto">
+                        {formatDuration(video.duration_seconds)}
+                      </span>
+                    )}
+                  </div>
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Play className="w-16 h-16 text-white" />
                   </div>
@@ -209,6 +234,11 @@ const ShortVideos = () => {
                   >
                     {selectedVideo.profiles.username}
                   </Link>
+                  {selectedVideo.genre && (
+                    <Badge variant="outline" className="ml-2">
+                      {selectedVideo.genre}
+                    </Badge>
+                  )}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">

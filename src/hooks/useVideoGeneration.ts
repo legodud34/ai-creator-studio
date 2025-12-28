@@ -18,7 +18,19 @@ export const useVideoGeneration = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const pollForCompletion = useCallback(async (predictionId: string, prompt: string, durationSeconds: number): Promise<GeneratedVideo | null> => {
+  const detectGenre = async (prompt: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("detect-genre", {
+        body: { prompt },
+      });
+      if (error || !data?.genre) return null;
+      return data.genre;
+    } catch {
+      return null;
+    }
+  };
+
+  const pollForCompletion = useCallback(async (predictionId: string, prompt: string, durationSeconds: number, genre: string | null): Promise<GeneratedVideo | null> => {
     const maxAttempts = 120;
     let attempts = 0;
 
@@ -33,7 +45,7 @@ export const useVideoGeneration = () => {
         if (data.status === "succeeded") {
           const videoUrl = Array.isArray(data.output) ? data.output[0] : data.output;
           
-          const savedVideo = await addVideo(videoUrl, prompt, durationSeconds);
+          const savedVideo = await addVideo(videoUrl, prompt, durationSeconds, genre);
           
           if (savedVideo) {
             return {
@@ -81,9 +93,14 @@ export const useVideoGeneration = () => {
     }
 
     setIsGenerating(true);
-    setProgress("Starting...");
+    setProgress("Detecting genre...");
 
     try {
+      // Auto-detect genre from prompt
+      const detectedGenre = await detectGenre(prompt);
+      
+      setProgress("Starting generation...");
+      
       const { data, error } = await supabase.functions.invoke("generate-video", {
         body: { prompt, aspectRatio, duration },
       });
@@ -93,12 +110,12 @@ export const useVideoGeneration = () => {
 
       setProgress("Generating... This takes 1-2 min");
 
-      const newVideo = await pollForCompletion(data.id, prompt, duration);
+      const newVideo = await pollForCompletion(data.id, prompt, duration, detectedGenre);
 
       if (newVideo) {
         toast({
           title: "Video generated!",
-          description: "Your video is ready.",
+          description: detectedGenre ? `Genre: ${detectedGenre}` : "Your video is ready.",
         });
         return newVideo;
       }
