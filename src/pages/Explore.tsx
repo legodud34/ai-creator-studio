@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Search, Image, Video, Users, Loader2, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 interface PublicImage {
   id: string;
@@ -42,6 +43,13 @@ interface UserProfile {
   bio: string | null;
 }
 
+interface UserBadgeInfo {
+  isVerified: boolean;
+  isAdmin: boolean;
+  isModerator: boolean;
+  isOwner: boolean;
+}
+
 const Explore = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -52,12 +60,13 @@ const Explore = () => {
   const [images, setImages] = useState<PublicImage[]>([]);
   const [videos, setVideos] = useState<PublicVideo[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [userBadges, setUserBadges] = useState<Map<string, UserBadgeInfo>>(new Map());
 
   useEffect(() => {
     const fetchContent = async () => {
       setIsLoading(true);
 
-      const [imagesResult, videosResult, usersResult] = await Promise.all([
+      const [imagesResult, videosResult, usersResult, verifiedResult, rolesResult] = await Promise.all([
         supabase
           .from("images")
           .select("*, profiles(username, avatar_url)")
@@ -75,8 +84,29 @@ const Explore = () => {
           .select("*")
           .order("created_at", { ascending: false })
           .limit(50),
+        supabase.from("verified_users").select("user_id"),
+        supabase.from("user_roles").select("user_id, role"),
       ]);
 
+      // Build badge info map
+      const badgeMap = new Map<string, UserBadgeInfo>();
+      const verifiedIds = new Set(verifiedResult.data?.map(v => v.user_id) || []);
+      
+      rolesResult.data?.forEach(r => {
+        const existing = badgeMap.get(r.user_id) || { isVerified: false, isAdmin: false, isModerator: false, isOwner: false };
+        if (r.role === "admin") existing.isAdmin = true;
+        if (r.role === "moderator") existing.isModerator = true;
+        if (r.role === "owner") existing.isOwner = true;
+        badgeMap.set(r.user_id, existing);
+      });
+
+      verifiedIds.forEach(id => {
+        const existing = badgeMap.get(id) || { isVerified: false, isAdmin: false, isModerator: false, isOwner: false };
+        existing.isVerified = true;
+        badgeMap.set(id, existing);
+      });
+
+      setUserBadges(badgeMap);
       setImages((imagesResult.data || []) as PublicImage[]);
       setVideos((videosResult.data || []) as PublicVideo[]);
       setUsers(usersResult.data || []);
@@ -85,6 +115,17 @@ const Explore = () => {
 
     fetchContent();
   }, []);
+
+  const getBadgeType = (userId: string): "owner" | "admin" | "moderator" | "verified" | "both" | null => {
+    const info = userBadges.get(userId);
+    if (!info) return null;
+    if (info.isOwner) return "owner";
+    if (info.isAdmin && info.isVerified) return "both";
+    if (info.isAdmin) return "admin";
+    if (info.isModerator) return "moderator";
+    if (info.isVerified) return "verified";
+    return null;
+  };
 
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
@@ -214,6 +255,9 @@ const Explore = () => {
                             <span className="text-xs text-muted-foreground truncate">
                               @{img.profiles.username}
                             </span>
+                            {getBadgeType(img.user_id) && (
+                              <VerifiedBadge type={getBadgeType(img.user_id)!} size="sm" />
+                            )}
                           </div>
                           <p className="text-[10px] text-foreground/50 line-clamp-1 mt-1">
                             {img.prompt}
@@ -262,6 +306,9 @@ const Explore = () => {
                             <span className="text-sm text-foreground">
                               @{vid.profiles.username}
                             </span>
+                            {getBadgeType(vid.user_id) && (
+                              <VerifiedBadge type={getBadgeType(vid.user_id)!} size="sm" />
+                            )}
                             {vid.genre && (
                               <span className="ml-auto text-xs text-accent bg-accent/10 px-2 py-0.5 rounded">
                                 {vid.genre}
@@ -299,7 +346,12 @@ const Explore = () => {
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground">@{u.username}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium text-foreground">@{u.username}</p>
+                            {getBadgeType(u.id) && (
+                              <VerifiedBadge type={getBadgeType(u.id)!} size="sm" />
+                            )}
+                          </div>
                           {u.bio && (
                             <p className="text-sm text-muted-foreground line-clamp-1">
                               {u.bio}

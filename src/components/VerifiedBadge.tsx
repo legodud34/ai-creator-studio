@@ -1,4 +1,4 @@
-import { BadgeCheck, Crown } from "lucide-react";
+import { BadgeCheck, Crown, CheckCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -8,7 +8,7 @@ import {
 
 interface VerifiedBadgeProps {
   size?: "sm" | "md" | "lg";
-  type?: "verified" | "admin" | "both" | "owner";
+  type?: "verified" | "admin" | "both" | "owner" | "moderator";
   className?: string;
 }
 
@@ -24,6 +24,7 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
     admin: "text-purple-500",
     both: "text-amber-500",
     owner: "text-amber-400",
+    moderator: "text-red-500",
   };
 
   const glowStyles = {
@@ -31,6 +32,7 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
     admin: { filter: "drop-shadow(0 0 6px rgba(168, 85, 247, 0.8))" },
     both: { filter: "drop-shadow(0 0 8px rgba(245, 158, 11, 0.8))" },
     owner: { filter: "drop-shadow(0 0 12px rgba(251, 191, 36, 1)) drop-shadow(0 0 20px rgba(251, 191, 36, 0.6))" },
+    moderator: { filter: "drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))" },
   };
 
   const tooltipText = {
@@ -38,10 +40,12 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
     admin: "Admin",
     both: "Verified Admin",
     owner: "Owner",
+    moderator: "Moderator",
   };
 
   const isOwner = type === "owner";
-  const IconComponent = isOwner ? Crown : BadgeCheck;
+  const isModerator = type === "moderator";
+  const IconComponent = isOwner ? Crown : isModerator ? CheckCircle : BadgeCheck;
 
   return (
     <TooltipProvider>
