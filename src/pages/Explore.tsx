@@ -12,6 +12,7 @@ interface PublicImage {
   id: string;
   url: string;
   prompt: string;
+  title: string | null;
   created_at: string;
   user_id: string;
   profiles: {
@@ -24,6 +25,8 @@ interface PublicVideo {
   id: string;
   url: string;
   prompt: string;
+  title: string | null;
+  genre: string | null;
   created_at: string;
   user_id: string;
   profiles: {
@@ -89,12 +92,15 @@ const Explore = () => {
 
   const filteredImages = images.filter((img) =>
     img.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    img.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
+    img.profiles.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (img.title && img.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const filteredVideos = videos.filter((vid) =>
     vid.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    vid.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
+    vid.profiles.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (vid.title && vid.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (vid.genre && vid.genre.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -193,6 +199,11 @@ const Explore = () => {
                           />
                         </div>
                         <div className="p-2">
+                          {img.title && (
+                            <p className="text-xs font-medium text-foreground line-clamp-1 mb-1">
+                              {img.title}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2">
                             <Avatar className="w-5 h-5">
                               <AvatarImage src={img.profiles.avatar_url || undefined} />
@@ -204,7 +215,7 @@ const Explore = () => {
                               @{img.profiles.username}
                             </span>
                           </div>
-                          <p className="text-xs text-foreground/70 line-clamp-1 mt-1">
+                          <p className="text-[10px] text-foreground/50 line-clamp-1 mt-1">
                             {img.prompt}
                           </p>
                         </div>
@@ -233,6 +244,11 @@ const Explore = () => {
                           />
                         </div>
                         <div className="p-3">
+                          {vid.title && (
+                            <p className="text-sm font-medium text-foreground line-clamp-1 mb-2">
+                              {vid.title}
+                            </p>
+                          )}
                           <Link
                             to={`/profile/${vid.profiles.username}`}
                             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -246,8 +262,13 @@ const Explore = () => {
                             <span className="text-sm text-foreground">
                               @{vid.profiles.username}
                             </span>
+                            {vid.genre && (
+                              <span className="ml-auto text-xs text-accent bg-accent/10 px-2 py-0.5 rounded">
+                                {vid.genre}
+                              </span>
+                            )}
                           </Link>
-                          <p className="text-sm text-foreground/70 line-clamp-1 mt-2">
+                          <p className="text-xs text-foreground/50 line-clamp-1 mt-2">
                             {vid.prompt}
                           </p>
                         </div>
