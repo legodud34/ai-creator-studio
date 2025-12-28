@@ -44,6 +44,7 @@ import {
   FileText,
   Plus,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -163,6 +164,16 @@ const AdminDashboard = () => {
   const [reportSuspended, setReportSuspended] = useState("");
   const [reportNotes, setReportNotes] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  // Edit report states
+  const [editingReport, setEditingReport] = useState<AdminMonthlyReport | null>(null);
+  const [editResolved, setEditResolved] = useState("");
+  const [editDismissed, setEditDismissed] = useState("");
+  const [editPending, setEditPending] = useState("");
+  const [editBanned, setEditBanned] = useState("");
+  const [editSuspended, setEditSuspended] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [isEditingReport, setIsEditingReport] = useState(false);
 
   const AVAILABLE_GENRES = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Romance", "Documentary", "Animation", "Music", "Gaming", "Other"];
 
@@ -770,6 +781,44 @@ const AdminDashboard = () => {
     }
   };
 
+  const openEditReport = (report: AdminMonthlyReport) => {
+    setEditingReport(report);
+    setEditResolved(report.reports_resolved.toString());
+    setEditDismissed(report.reports_dismissed.toString());
+    setEditPending(report.reports_pending.toString());
+    setEditBanned(report.users_banned.toString());
+    setEditSuspended(report.users_suspended.toString());
+    setEditNotes(report.notes || "");
+  };
+
+  const handleUpdateMonthlyReport = async () => {
+    if (!editingReport) return;
+
+    setIsEditingReport(true);
+
+    const { error } = await supabase
+      .from("admin_monthly_reports")
+      .update({
+        reports_resolved: parseInt(editResolved) || 0,
+        reports_dismissed: parseInt(editDismissed) || 0,
+        reports_pending: parseInt(editPending) || 0,
+        users_banned: parseInt(editBanned) || 0,
+        users_suspended: parseInt(editSuspended) || 0,
+        notes: editNotes.trim() || null,
+      })
+      .eq("id", editingReport.id);
+
+    setIsEditingReport(false);
+
+    if (error) {
+      toast({ title: "Failed to update report", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Monthly report updated" });
+      setEditingReport(null);
+      fetchData();
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -833,7 +882,7 @@ const AdminDashboard = () => {
                 Submit Report
               </TabsTrigger>
             )}
-            {isOwner && (
+            {(isOwner || isAdmin) && (
               <TabsTrigger value="monthly-reports" className="gap-2">
                 <FileText className="w-4 h-4" />
                 Monthly Reports
@@ -1543,95 +1592,207 @@ const AdminDashboard = () => {
             </TabsContent>
           )}
 
-          {/* Monthly Reports Tab (Owner only) */}
-          {isOwner && (
+          {/* Monthly Reports Tab (Owner and Admin) */}
+          {(isOwner || isAdmin) && (
             <TabsContent value="monthly-reports" className="space-y-4">
               <section className="glass rounded-xl p-4">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-amber-500" />
-                  Admin Monthly Reports
+                  {isOwner ? "Admin Monthly Reports" : "My Monthly Reports"}
                 </h2>
                 
-                {monthlyReports.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    No monthly reports submitted yet. Admins can submit their reports here.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {monthlyReports.map((report) => (
-                      <div key={report.id} className="border border-border/50 rounded-lg p-4 bg-secondary/20">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">@{report.admin?.username || "Unknown"}</span>
-                            <Badge variant="outline" className="text-amber-400 border-amber-400/50">
-                              {getMonthName(report.report_month)} {report.report_year}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
-                              Submitted {new Date(report.created_at).toLocaleDateString()}
-                            </span>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
-                                  <Trash2 className="w-4 h-4" />
+                {(() => {
+                  const visibleReports = isOwner 
+                    ? monthlyReports 
+                    : monthlyReports.filter(r => r.admin_user_id === user?.id);
+                  
+                  return visibleReports.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      {isOwner 
+                        ? "No monthly reports submitted yet. Admins can submit their reports here."
+                        : "You haven't submitted any monthly reports yet. Use the Submit Report tab to create one."}
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {visibleReports.map((report) => (
+                        <div key={report.id} className="border border-border/50 rounded-lg p-4 bg-secondary/20">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">@{report.admin?.username || "Unknown"}</span>
+                              <Badge variant="outline" className="text-amber-400 border-amber-400/50">
+                                {getMonthName(report.report_month)} {report.report_year}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                Submitted {new Date(report.created_at).toLocaleDateString()}
+                              </span>
+                              {(isOwner || report.admin_user_id === user?.id) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditReport(report)}
+                                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                >
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Monthly Report</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this report from @{report.admin?.username} for {getMonthName(report.report_month)} {report.report_year}? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteMonthlyReport(report.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              )}
+                              {isOwner && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Monthly Report</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete this report from @{report.admin?.username} for {getMonthName(report.report_month)} {report.report_year}? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteMonthlyReport(report.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
                           </div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                            <div className="bg-green-500/10 rounded-lg p-3 text-center">
+                              <p className="text-2xl font-bold text-green-400">{report.reports_resolved}</p>
+                              <p className="text-xs text-muted-foreground">Resolved</p>
+                            </div>
+                            <div className="bg-yellow-500/10 rounded-lg p-3 text-center">
+                              <p className="text-2xl font-bold text-yellow-400">{report.reports_dismissed}</p>
+                              <p className="text-xs text-muted-foreground">Dismissed</p>
+                            </div>
+                            <div className="bg-orange-500/10 rounded-lg p-3 text-center">
+                              <p className="text-2xl font-bold text-orange-400">{report.reports_pending}</p>
+                              <p className="text-xs text-muted-foreground">Pending</p>
+                            </div>
+                            <div className="bg-red-500/10 rounded-lg p-3 text-center">
+                              <p className="text-2xl font-bold text-red-400">{report.users_banned}</p>
+                              <p className="text-xs text-muted-foreground">Banned</p>
+                            </div>
+                            <div className="bg-purple-500/10 rounded-lg p-3 text-center">
+                              <p className="text-2xl font-bold text-purple-400">{report.users_suspended}</p>
+                              <p className="text-xs text-muted-foreground">Suspended</p>
+                            </div>
+                          </div>
+                          {report.notes && (
+                            <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Notes:</p>
+                              <p className="text-sm">{report.notes}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                          <div className="bg-green-500/10 rounded-lg p-3 text-center">
-                            <p className="text-2xl font-bold text-green-400">{report.reports_resolved}</p>
-                            <p className="text-xs text-muted-foreground">Resolved</p>
-                          </div>
-                          <div className="bg-yellow-500/10 rounded-lg p-3 text-center">
-                            <p className="text-2xl font-bold text-yellow-400">{report.reports_dismissed}</p>
-                            <p className="text-xs text-muted-foreground">Dismissed</p>
-                          </div>
-                          <div className="bg-orange-500/10 rounded-lg p-3 text-center">
-                            <p className="text-2xl font-bold text-orange-400">{report.reports_pending}</p>
-                            <p className="text-xs text-muted-foreground">Pending</p>
-                          </div>
-                          <div className="bg-red-500/10 rounded-lg p-3 text-center">
-                            <p className="text-2xl font-bold text-red-400">{report.users_banned}</p>
-                            <p className="text-xs text-muted-foreground">Banned</p>
-                          </div>
-                          <div className="bg-purple-500/10 rounded-lg p-3 text-center">
-                            <p className="text-2xl font-bold text-purple-400">{report.users_suspended}</p>
-                            <p className="text-xs text-muted-foreground">Suspended</p>
-                          </div>
-                        </div>
-                        {report.notes && (
-                          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Notes:</p>
-                            <p className="text-sm">{report.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </section>
             </TabsContent>
           )}
+
+          {/* Edit Report Dialog */}
+          <AlertDialog open={!!editingReport} onOpenChange={(open) => !open && setEditingReport(null)}>
+            <AlertDialogContent className="max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Edit Monthly Report</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {editingReport && (
+                    <>Update report for {getMonthName(editingReport.report_month)} {editingReport.report_year}</>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-green-400">Reports Resolved</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editResolved}
+                      onChange={(e) => setEditResolved(e.target.value)}
+                      className="glass"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-yellow-400">Reports Dismissed</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editDismissed}
+                      onChange={(e) => setEditDismissed(e.target.value)}
+                      className="glass"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-orange-400">Pending</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editPending}
+                      onChange={(e) => setEditPending(e.target.value)}
+                      className="glass"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-red-400">Banned</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editBanned}
+                      onChange={(e) => setEditBanned(e.target.value)}
+                      className="glass"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-purple-400">Suspended</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={editSuspended}
+                      onChange={(e) => setEditSuspended(e.target.value)}
+                      className="glass"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Notes</label>
+                  <Textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Additional notes..."
+                    className="glass min-h-[80px]"
+                  />
+                </div>
+              </div>
+
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleUpdateMonthlyReport}
+                  disabled={isEditingReport}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isEditingReport ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Tabs>
       </div>
     </div>
