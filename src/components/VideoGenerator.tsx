@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Video, Loader2, Download, Trash2, Share2, Clock } from "lucide-react";
 import { useVideoGeneration, GeneratedVideo } from "@/hooks/useVideoGeneration";
 import { useToast } from "@/hooks/use-toast";
+import SavedWordsBar from "@/components/SavedWordsBar";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -136,6 +137,10 @@ const VideoGenerator = () => {
           <h2 className="text-base md:text-lg font-semibold">Create Video</h2>
         </div>
 
+        <SavedWordsBar
+          onWordClick={(word) => setPrompt((prev) => prev ? `${prev} ${word}` : word)}
+        />
+        
         <Textarea
           placeholder="Describe the video you want to create... Be descriptive about motion and action!"
           value={prompt}
