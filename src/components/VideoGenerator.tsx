@@ -36,23 +36,41 @@ const VideoGenerator = () => {
     try {
       const response = await fetch(video.url);
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `creative-ai-${video.id}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const file = new File([blob], `ai-video-${video.id}.mp4`, { type: 'video/mp4' });
 
+      // On mobile, use share API to allow saving to photos/files
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Save Video',
+        });
+        toast({
+          title: "Saved!",
+          description: "Video saved to your device.",
+        });
+      } else {
+        // Desktop fallback - trigger download
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `ai-video-${video.id}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Downloaded!",
+          description: "Video saved to your device.",
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // User cancelled
+      }
       toast({
-        title: "Downloaded!",
-        description: "Video saved to your device.",
-      });
-    } catch {
-      toast({
-        title: "Download failed",
-        description: "Could not download the video.",
+        title: "Save failed",
+        description: "Could not save the video.",
         variant: "destructive",
       });
     }
@@ -60,21 +78,41 @@ const VideoGenerator = () => {
 
   const handleShare = async (video: GalleryVideo) => {
     try {
-      if (navigator.share) {
+      const response = await fetch(video.url);
+      const blob = await response.blob();
+      const file = new File([blob], `ai-video-${video.id}.mp4`, { type: 'video/mp4' });
+
+      // Try sharing as file first (mobile)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Check out this AI-generated video!",
+          text: video.prompt,
+        });
+      } else if (navigator.share) {
+        // Fallback to URL share
         await navigator.share({
           title: "Check out this AI-generated video!",
           text: video.prompt,
           url: video.url,
         });
       } else {
+        // Desktop fallback - copy URL
         await navigator.clipboard.writeText(video.url);
         toast({
           title: "Link copied!",
           description: "Video URL copied to clipboard.",
         });
       }
-    } catch {
-      // User cancelled share
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // User cancelled
+      }
+      toast({
+        title: "Share failed",
+        description: "Could not share the video.",
+        variant: "destructive",
+      });
     }
   };
 
