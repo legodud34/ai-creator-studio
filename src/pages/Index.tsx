@@ -19,7 +19,7 @@ const Index = () => {
   const totalItems = images.length + videos.length;
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAdminOrOwner = async () => {
       if (!user) {
         setIsAdmin(false);
         return;
@@ -27,12 +27,11 @@ const Index = () => {
       const { data } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      setIsAdmin(!!data);
+        .eq("user_id", user.id);
+      const roles = data?.map(r => r.role) || [];
+      setIsAdmin(roles.includes("admin") || roles.includes("owner"));
     };
-    checkAdmin();
+    checkAdminOrOwner();
   }, [user]);
 
   return (
