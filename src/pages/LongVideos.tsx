@@ -9,6 +9,7 @@ import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { GenreFilter, Genre } from "@/components/GenreFilter";
 import { Badge } from "@/components/ui/badge";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import {
   Dialog,
   DialogContent,
@@ -162,30 +163,22 @@ const LongVideos = () => {
                 className="glass rounded-xl overflow-hidden cursor-pointer group hover:ring-2 hover:ring-accent/50 transition-all"
                 onClick={() => setSelectedVideo(video)}
               >
-                <div className="relative aspect-video bg-muted">
-                  <video
+                <div className="relative">
+                  <VideoThumbnail
                     src={video.url}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    onMouseEnter={(e) => e.currentTarget.play()}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.pause();
-                      e.currentTarget.currentTime = 0;
-                    }}
+                    aspectRatio="aspect-video"
+                    showPlayButton={true}
+                    playOnHover={true}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
                     <p className="text-white text-base font-medium line-clamp-2">{video.prompt}</p>
                   </div>
                   {video.duration_seconds && (
-                    <span className="absolute top-3 right-3 text-sm bg-black/60 text-white px-2 py-1 rounded">
+                    <span className="absolute top-3 right-3 text-sm bg-black/60 text-white px-2 py-1 rounded pointer-events-none">
                       {formatDuration(video.duration_seconds)}
                     </span>
                   )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="w-20 h-20 text-white" />
-                  </div>
                 </div>
                 <div className="p-4">
                   <div className="flex items-center justify-between">

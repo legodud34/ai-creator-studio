@@ -5,6 +5,7 @@ import { ArrowLeft, Video, Grid, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShortsPlayer } from "@/components/ShortsPlayer";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 
 interface VideoWithProfile {
   id: string;
@@ -203,17 +204,12 @@ const Shorts = () => {
               className="glass rounded-xl overflow-hidden cursor-pointer group hover:ring-2 hover:ring-accent/50 transition-all"
               onClick={() => setViewMode("player")}
             >
-              <div className="relative aspect-[9/16] bg-muted">
-                <video
+              <div className="relative">
+                <VideoThumbnail
                   src={video.url}
-                  className="w-full h-full object-cover"
-                  muted
-                  playsInline
-                  onMouseEnter={(e) => e.currentTarget.play()}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.pause();
-                    e.currentTarget.currentTime = 0;
-                  }}
+                  aspectRatio="aspect-[9/16]"
+                  showPlayButton={true}
+                  playOnHover={true}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
