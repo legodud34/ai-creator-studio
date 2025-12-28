@@ -5,6 +5,7 @@ import { Sparkles, Loader2, Download, Trash2, Share2 } from "lucide-react";
 import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { useToast } from "@/hooks/use-toast";
 import { GalleryImage } from "@/contexts/GalleryContext";
+import SavedWordsBar from "@/components/SavedWordsBar";
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -113,6 +114,10 @@ const ImageGenerator = () => {
           <Sparkles className="w-5 h-5" />
           <h2 className="text-base md:text-lg font-semibold">Create Image</h2>
         </div>
+        
+        <SavedWordsBar
+          onWordClick={(word) => setPrompt((prev) => prev ? `${prev} ${word}` : word)}
+        />
         
         <Textarea
           placeholder="Describe the image you want to create..."
