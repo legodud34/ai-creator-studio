@@ -143,13 +143,16 @@ const AdminDashboard = () => {
       const ownerIds = new Set(ownerUsers?.map((o) => o.user_id) || []);
       const bannedIds = new Set(bannedUsers?.map((b) => b.user_id) || []);
 
-      const enrichedProfiles = profiles.map((p) => ({
-        ...p,
-        is_verified: verifiedIds.has(p.id),
-        is_admin: adminIds.has(p.id),
-        is_owner: ownerIds.has(p.id),
-        is_banned: bannedIds.has(p.id),
-      }));
+      const enrichedProfiles = profiles.map((p) => {
+        const isOwner = ownerIds.has(p.id);
+        return {
+          ...p,
+          is_verified: isOwner || verifiedIds.has(p.id), // Owners are always verified
+          is_admin: adminIds.has(p.id),
+          is_owner: isOwner,
+          is_banned: bannedIds.has(p.id),
+        };
+      });
 
       setUsers(enrichedProfiles);
     }
