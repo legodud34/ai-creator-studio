@@ -4,8 +4,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Video, Loader2, Download, Trash2, Share2, Clock } from "lucide-react";
-import { useVideoGeneration, GeneratedVideo } from "@/hooks/useVideoGeneration";
+import { useVideoGeneration } from "@/hooks/useVideoGeneration";
 import { useToast } from "@/hooks/use-toast";
+import { GalleryVideo } from "@/contexts/GalleryContext";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -31,9 +32,9 @@ const VideoGenerator = () => {
     setPrompt("");
   };
 
-  const handleDownload = async (video: GeneratedVideo) => {
+  const handleDownload = async (video: GalleryVideo) => {
     try {
-      const response = await fetch(video.videoUrl);
+      const response = await fetch(video.url);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -57,16 +58,16 @@ const VideoGenerator = () => {
     }
   };
 
-  const handleShare = async (video: GeneratedVideo) => {
+  const handleShare = async (video: GalleryVideo) => {
     try {
       if (navigator.share) {
         await navigator.share({
           title: "Check out this AI-generated video!",
           text: video.prompt,
-          url: video.videoUrl,
+          url: video.url,
         });
       } else {
-        await navigator.clipboard.writeText(video.videoUrl);
+        await navigator.clipboard.writeText(video.url);
         toast({
           title: "Link copied!",
           description: "Video URL copied to clipboard.",
@@ -187,7 +188,7 @@ const VideoGenerator = () => {
               <div key={video.id} className="glass rounded-2xl overflow-hidden">
                 <div className="relative aspect-video bg-muted">
                   <video
-                    src={video.videoUrl}
+                    src={video.url}
                     controls
                     className="w-full h-full object-contain"
                     playsInline

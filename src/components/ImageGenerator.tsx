@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2, Download, Trash2, Share2 } from "lucide-react";
-import { useImageGeneration, GeneratedImage } from "@/hooks/useImageGeneration";
+import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { useToast } from "@/hooks/use-toast";
+import { GalleryImage } from "@/contexts/GalleryContext";
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -15,10 +16,10 @@ const ImageGenerator = () => {
     setPrompt("");
   };
 
-  const handleDownload = async (image: GeneratedImage) => {
+  const handleDownload = async (image: GalleryImage) => {
     try {
       const link = document.createElement("a");
-      link.href = image.imageUrl;
+      link.href = image.url;
       link.download = `creative-ai-${image.id}.png`;
       document.body.appendChild(link);
       link.click();
@@ -37,7 +38,7 @@ const ImageGenerator = () => {
     }
   };
 
-  const handleShare = async (image: GeneratedImage) => {
+  const handleShare = async (image: GalleryImage) => {
     try {
       if (navigator.share) {
         await navigator.share({
@@ -45,7 +46,7 @@ const ImageGenerator = () => {
           text: image.prompt,
         });
       } else {
-        await navigator.clipboard.writeText(image.imageUrl);
+        await navigator.clipboard.writeText(image.url);
         toast({
           title: "Link copied!",
           description: "Image URL copied to clipboard.",
@@ -105,7 +106,7 @@ const ImageGenerator = () => {
               >
                 <div className="relative aspect-square">
                   <img
-                    src={image.imageUrl}
+                    src={image.url}
                     alt={image.prompt}
                     className="w-full h-full object-cover"
                   />

@@ -2,40 +2,66 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Image, Mic, Video, LayoutGrid } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Image, Mic, Video, LayoutGrid, Compass, LogIn } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
 import { useGallery } from "@/contexts/GalleryContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
   const { images, videos } = useGallery();
+  const { user, profile } = useAuth();
   const totalItems = images.length + videos.length;
 
   return (
     <div className="min-h-screen gradient-surface">
-      {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-primary/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-accent/10 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6 md:py-8">
-        {/* Header */}
         <header className="mb-8 md:mb-12">
-          <div className="flex justify-end mb-4">
-            <Link to="/gallery">
+          <div className="flex justify-end gap-2 mb-4">
+            <Link to="/explore">
               <Button variant="outline" size="sm" className="glass border-border/50 h-9">
-                <LayoutGrid className="w-4 h-4 mr-1" />
-                Gallery
-                {totalItems > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
-                    {totalItems}
-                  </span>
-                )}
+                <Compass className="w-4 h-4 mr-1" />
+                Explore
               </Button>
             </Link>
+            {user ? (
+              <>
+                <Link to="/gallery">
+                  <Button variant="outline" size="sm" className="glass border-border/50 h-9">
+                    <LayoutGrid className="w-4 h-4 mr-1" />
+                    Gallery
+                    {totalItems > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
+                        {totalItems}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+                <Link to={`/profile/${profile?.username}`}>
+                  <Avatar className="w-9 h-9 border border-primary/50 hover:border-primary transition-colors cursor-pointer">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                      {profile?.username?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button variant="outline" size="sm" className="glass border-border/50 h-9">
+                  <LogIn className="w-4 h-4 mr-1" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
 
           <div className="text-center space-y-4">

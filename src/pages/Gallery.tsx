@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Trash2, Share2, Image, Video } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Share2, Image, Video, Lock, Globe } from "lucide-react";
 import { useGallery } from "@/contexts/GalleryContext";
 import { useToast } from "@/hooks/use-toast";
 
 const Gallery = () => {
-  const { images, videos, deleteImage, deleteVideo } = useGallery();
+  const { images, videos, deleteImage, deleteVideo, toggleImageVisibility, toggleVideoVisibility } = useGallery();
   const { toast } = useToast();
   const totalItems = images.length + videos.length;
 
@@ -56,7 +56,6 @@ const Gallery = () => {
       </div>
 
       <div className="relative z-10 container max-w-4xl mx-auto px-4 py-6">
-        {/* Header */}
         <header className="flex items-center gap-4 mb-8">
           <Link to="/">
             <Button variant="ghost" size="icon" className="shrink-0">
@@ -84,7 +83,6 @@ const Gallery = () => {
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Images Section */}
             {images.length > 0 && (
               <section>
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -93,17 +91,28 @@ const Gallery = () => {
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                   {images.map((img) => (
-                    <div key={img.id} className="glass rounded-xl overflow-hidden group">
+                    <div key={img.id} className="glass rounded-xl overflow-hidden group relative">
                       <div className="aspect-square relative">
-                        <img src={img.imageUrl} alt={img.prompt} className="w-full h-full object-cover" />
+                        <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => toggleImageVisibility(img.id)}
+                          className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
+                          title={img.is_public ? "Make private" : "Make public"}
+                        >
+                          {img.is_public ? (
+                            <Globe className="w-4 h-4 text-accent" />
+                          ) : (
+                            <Lock className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
                       </div>
                       <div className="p-2 md:p-3 space-y-2">
                         <p className="text-xs text-foreground/70 line-clamp-1">{img.prompt}</p>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="flex-1 h-8" onClick={() => handleDownloadImage(img.imageUrl, img.id)}>
+                          <Button size="sm" variant="ghost" className="flex-1 h-8" onClick={() => handleDownloadImage(img.url, img.id)}>
                             <Download className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="flex-1 h-8" onClick={() => handleShare(img.imageUrl, img.prompt)}>
+                          <Button size="sm" variant="ghost" className="flex-1 h-8" onClick={() => handleShare(img.url, img.prompt)}>
                             <Share2 className="w-3 h-3" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-8 text-destructive" onClick={() => deleteImage(img.id)}>
@@ -117,7 +126,6 @@ const Gallery = () => {
               </section>
             )}
 
-            {/* Videos Section */}
             {videos.length > 0 && (
               <section>
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -126,17 +134,28 @@ const Gallery = () => {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {videos.map((vid) => (
-                    <div key={vid.id} className="glass rounded-xl overflow-hidden">
-                      <div className="aspect-video">
-                        <video src={vid.videoUrl} controls playsInline className="w-full h-full object-contain bg-muted" />
+                    <div key={vid.id} className="glass rounded-xl overflow-hidden relative">
+                      <div className="aspect-video relative">
+                        <video src={vid.url} controls playsInline className="w-full h-full object-contain bg-muted" />
+                        <button
+                          onClick={() => toggleVideoVisibility(vid.id)}
+                          className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background transition-colors z-10"
+                          title={vid.is_public ? "Make private" : "Make public"}
+                        >
+                          {vid.is_public ? (
+                            <Globe className="w-4 h-4 text-accent" />
+                          ) : (
+                            <Lock className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
                       </div>
                       <div className="p-3 space-y-2">
                         <p className="text-sm text-foreground/70 line-clamp-1">{vid.prompt}</p>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="secondary" className="flex-1 h-9" onClick={() => handleDownloadVideo(vid.videoUrl, vid.id)}>
+                          <Button size="sm" variant="secondary" className="flex-1 h-9" onClick={() => handleDownloadVideo(vid.url, vid.id)}>
                             <Download className="w-4 h-4 mr-1" /> Save
                           </Button>
-                          <Button size="sm" variant="secondary" className="flex-1 h-9" onClick={() => handleShare(vid.videoUrl, vid.prompt)}>
+                          <Button size="sm" variant="secondary" className="flex-1 h-9" onClick={() => handleShare(vid.url, vid.prompt)}>
                             <Share2 className="w-4 h-4 mr-1" /> Share
                           </Button>
                           <Button size="sm" variant="destructive" className="h-9" onClick={() => deleteVideo(vid.id)}>
