@@ -37,6 +37,7 @@ interface ContentItem {
   id: string;
   url: string;
   prompt: string;
+  title: string | null;
   is_public: boolean;
   created_at: string;
 }
@@ -527,7 +528,7 @@ const Profile = () => {
                     )}
                   </div>
                   <div className="p-2 space-y-2">
-                    <p className="text-xs text-foreground/70 line-clamp-1">{img.prompt}</p>
+                    <p className="text-xs text-foreground/70 line-clamp-1">{img.title || img.prompt}</p>
                     <div className="flex items-center gap-3">
                       <LikeButton imageId={img.id} />
                       <button
@@ -577,7 +578,7 @@ const Profile = () => {
                     )}
                   </div>
                   <div className="p-3 space-y-3">
-                    <p className="text-sm text-foreground/70 line-clamp-1">{vid.prompt}</p>
+                    <p className="text-sm text-foreground/70 line-clamp-1">{vid.title || vid.prompt}</p>
                     <div className="flex items-center gap-3">
                       <LikeButton videoId={vid.id} />
                       <button
