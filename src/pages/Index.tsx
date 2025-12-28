@@ -76,8 +76,14 @@ const Index = () => {
             )}
           </div>
 
-          {/* Video Category Navigation */}
+          {/* Content Category Navigation */}
           <div className="flex flex-wrap justify-center gap-2 mb-6">
+            <Link to="/explore?tab=images">
+              <Button variant="ghost" size="sm" className="glass border border-primary/30 hover:border-primary/60 text-primary">
+                <Image className="w-4 h-4 mr-1" />
+                Images
+              </Button>
+            </Link>
             <Link to="/shorts">
               <Button variant="ghost" size="sm" className="glass border border-accent/30 hover:border-accent/60 text-accent">
                 <Zap className="w-4 h-4 mr-1" />
