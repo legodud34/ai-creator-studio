@@ -152,6 +152,17 @@ const AdminDashboard = () => {
   const [assignAdminUsername, setAssignAdminUsername] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [banRecords, setBanRecords] = useState<BanRecord[]>([]);
+  
+  // Monthly report form states (for admins)
+  const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
+  const [reportYear, setReportYear] = useState(new Date().getFullYear());
+  const [reportResolved, setReportResolved] = useState("");
+  const [reportDismissed, setReportDismissed] = useState("");
+  const [reportPending, setReportPending] = useState("");
+  const [reportBanned, setReportBanned] = useState("");
+  const [reportSuspended, setReportSuspended] = useState("");
+  const [reportNotes, setReportNotes] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   const AVAILABLE_GENRES = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Romance", "Documentary", "Animation", "Music", "Gaming", "Other"];
 
@@ -712,6 +723,39 @@ const AdminDashboard = () => {
     return new Date(2000, month - 1).toLocaleString('default', { month: 'long' });
   };
 
+  const handleSubmitMonthlyReport = async () => {
+    if (!user) return;
+
+    setIsSubmittingReport(true);
+    
+    const { error } = await supabase.from("admin_monthly_reports").insert({
+      admin_user_id: user.id,
+      report_month: reportMonth,
+      report_year: reportYear,
+      reports_resolved: parseInt(reportResolved) || 0,
+      reports_dismissed: parseInt(reportDismissed) || 0,
+      reports_pending: parseInt(reportPending) || 0,
+      users_banned: parseInt(reportBanned) || 0,
+      users_suspended: parseInt(reportSuspended) || 0,
+      notes: reportNotes.trim() || null,
+    });
+
+    setIsSubmittingReport(false);
+
+    if (error) {
+      toast({ title: "Failed to submit report", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Monthly report submitted successfully" });
+      setReportResolved("");
+      setReportDismissed("");
+      setReportPending("");
+      setReportBanned("");
+      setReportSuspended("");
+      setReportNotes("");
+      fetchData();
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -767,6 +811,12 @@ const AdminDashboard = () => {
               <TabsTrigger value="assignments" className="gap-2">
                 <Users className="w-4 h-4" />
                 Assignments
+              </TabsTrigger>
+            )}
+            {isAdmin && !isOwner && (
+              <TabsTrigger value="submit-report" className="gap-2">
+                <FileText className="w-4 h-4" />
+                Submit Report
               </TabsTrigger>
             )}
             {isOwner && (
@@ -1349,6 +1399,135 @@ const AdminDashboard = () => {
               </section>
             )}
           </TabsContent>
+
+          {/* Submit Monthly Report Tab (Admins only) */}
+          {isAdmin && !isOwner && (
+            <TabsContent value="submit-report" className="space-y-4">
+              <section className="glass rounded-xl p-4">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-amber-500" />
+                  Submit Monthly Report
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Submit your monthly activity report to the owner. Include your moderation statistics for the selected month.
+                </p>
+
+                <div className="grid gap-4 max-w-2xl">
+                  {/* Month/Year Selection */}
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium mb-2 block">Month</label>
+                      <select
+                        value={reportMonth}
+                        onChange={(e) => setReportMonth(parseInt(e.target.value))}
+                        className="w-full glass rounded-md border border-border/50 bg-secondary/50 px-3 py-2 text-sm"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                          <option key={m} value={m}>{getMonthName(m)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-sm font-medium mb-2 block">Year</label>
+                      <select
+                        value={reportYear}
+                        onChange={(e) => setReportYear(parseInt(e.target.value))}
+                        className="w-full glass rounded-md border border-border/50 bg-secondary/50 px-3 py-2 text-sm"
+                      >
+                        {[2024, 2025, 2026].map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block text-green-400">Reports Resolved</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={reportResolved}
+                        onChange={(e) => setReportResolved(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block text-yellow-400">Reports Dismissed</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={reportDismissed}
+                        onChange={(e) => setReportDismissed(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block text-orange-400">Reports Pending</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={reportPending}
+                        onChange={(e) => setReportPending(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block text-red-400">Users Banned</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={reportBanned}
+                        onChange={(e) => setReportBanned(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block text-purple-400">Users Suspended</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={reportSuspended}
+                        onChange={(e) => setReportSuspended(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Notes (Optional)</label>
+                    <Textarea
+                      value={reportNotes}
+                      onChange={(e) => setReportNotes(e.target.value)}
+                      placeholder="Any additional notes about your moderation activities this month..."
+                      className="glass min-h-[100px]"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    onClick={handleSubmitMonthlyReport}
+                    disabled={isSubmittingReport}
+                    className="w-full md:w-auto gap-2 bg-amber-600 hover:bg-amber-700"
+                  >
+                    {isSubmittingReport ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileText className="w-4 h-4" />
+                    )}
+                    Submit Report
+                  </Button>
+                </div>
+              </section>
+            </TabsContent>
+          )}
 
           {/* Monthly Reports Tab (Owner only) */}
           {isOwner && (
