@@ -9,21 +9,24 @@ import { useToast } from "@/hooks/use-toast";
 
 const VideoGenerator = () => {
   const [prompt, setPrompt] = useState("");
-  const [duration, setDuration] = useState("1");
+  const [durationValue, setDurationValue] = useState("5");
+  const [durationUnit, setDurationUnit] = useState<"seconds" | "minutes">("seconds");
   const { isGenerating, progress, videos, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    const durationMinutes = parseInt(duration) || 1;
-    if (durationMinutes < 1 || durationMinutes > 10) {
+    const value = parseInt(durationValue) || 5;
+    const durationSeconds = durationUnit === "minutes" ? value * 60 : value;
+    
+    if (durationSeconds < 5 || durationSeconds > 600) {
       toast({
         title: "Invalid duration",
-        description: "Duration must be between 1 and 10 minutes.",
+        description: "Duration must be between 5 seconds and 10 minutes.",
         variant: "destructive",
       });
       return;
     }
-    const durationSeconds = durationMinutes * 60;
+    
     await generateVideo(prompt, "16:9", durationSeconds);
     setPrompt("");
   };
@@ -91,24 +94,62 @@ const VideoGenerator = () => {
           disabled={isGenerating}
         />
 
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <Label htmlFor="duration" className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-              <Clock className="w-4 h-4" />
-              Duration (minutes)
-            </Label>
+        <div className="space-y-2">
+          <Label className="text-sm text-muted-foreground flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            Duration
+          </Label>
+          <div className="flex items-center gap-2">
             <Input
               id="duration"
               type="number"
-              min="1"
-              max="10"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="bg-background/50 border-border/50"
+              min={durationUnit === "seconds" ? "5" : "1"}
+              max={durationUnit === "seconds" ? "600" : "10"}
+              value={durationValue}
+              onChange={(e) => setDurationValue(e.target.value)}
+              className="flex-1 bg-background/50 border-border/50"
               disabled={isGenerating}
             />
+            <div className="flex rounded-lg overflow-hidden border border-border/50">
+              <button
+                type="button"
+                onClick={() => {
+                  if (durationUnit === "minutes") {
+                    const mins = parseInt(durationValue) || 1;
+                    setDurationValue(String(mins * 60));
+                  }
+                  setDurationUnit("seconds");
+                }}
+                className={`px-3 py-2 text-sm transition-colors ${
+                  durationUnit === "seconds"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-background/50 text-muted-foreground hover:bg-muted"
+                }`}
+                disabled={isGenerating}
+              >
+                Sec
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (durationUnit === "seconds") {
+                    const secs = parseInt(durationValue) || 5;
+                    setDurationValue(String(Math.max(1, Math.round(secs / 60))));
+                  }
+                  setDurationUnit("minutes");
+                }}
+                className={`px-3 py-2 text-sm transition-colors ${
+                  durationUnit === "minutes"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-background/50 text-muted-foreground hover:bg-muted"
+                }`}
+                disabled={isGenerating}
+              >
+                Min
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-6">1-10 min</p>
+          <p className="text-xs text-muted-foreground">5 sec - 10 min</p>
         </div>
 
         <Button
