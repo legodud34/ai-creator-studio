@@ -132,6 +132,7 @@ export type Database = {
           id: string
           is_public: boolean
           prompt: string
+          title: string | null
           url: string
           user_id: string
         }
@@ -140,6 +141,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           prompt: string
+          title?: string | null
           url: string
           user_id: string
         }
@@ -148,6 +150,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           prompt?: string
+          title?: string | null
           url?: string
           user_id?: string
         }
@@ -365,6 +368,7 @@ export type Database = {
           id: string
           is_public: boolean
           prompt: string
+          title: string | null
           url: string
           user_id: string
         }
@@ -375,6 +379,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           prompt: string
+          title?: string | null
           url: string
           user_id: string
         }
@@ -385,6 +390,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           prompt?: string
+          title?: string | null
           url?: string
           user_id?: string
         }

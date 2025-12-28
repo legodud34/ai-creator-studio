@@ -1,13 +1,19 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Trash2, Share2, Image, Video, Lock, Globe } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Download, Trash2, Share2, Image, Video, Lock, Globe, Pencil, Check, X } from "lucide-react";
 import { useGallery } from "@/contexts/GalleryContext";
 import { useToast } from "@/hooks/use-toast";
 
 const Gallery = () => {
-  const { images, videos, deleteImage, deleteVideo, toggleImageVisibility, toggleVideoVisibility } = useGallery();
+  const { images, videos, deleteImage, deleteVideo, toggleImageVisibility, toggleVideoVisibility, updateImageTitle, updateVideoTitle } = useGallery();
   const { toast } = useToast();
   const totalItems = images.length + videos.length;
+  
+  const [editingImageId, setEditingImageId] = useState<string | null>(null);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   const handleDownloadImage = async (imageUrl: string, id: string) => {
     const link = document.createElement("a");
@@ -46,6 +52,36 @@ const Gallery = () => {
         toast({ title: "Link copied!" });
       }
     } catch {}
+  };
+
+  const startEditingImage = (id: string, currentTitle: string | null) => {
+    setEditingImageId(id);
+    setEditTitle(currentTitle || "");
+  };
+
+  const startEditingVideo = (id: string, currentTitle: string | null) => {
+    setEditingVideoId(id);
+    setEditTitle(currentTitle || "");
+  };
+
+  const saveImageTitle = async (id: string) => {
+    await updateImageTitle(id, editTitle);
+    setEditingImageId(null);
+    setEditTitle("");
+    toast({ title: "Title updated!" });
+  };
+
+  const saveVideoTitle = async (id: string) => {
+    await updateVideoTitle(id, editTitle);
+    setEditingVideoId(null);
+    setEditTitle("");
+    toast({ title: "Title updated!" });
+  };
+
+  const cancelEditing = () => {
+    setEditingImageId(null);
+    setEditingVideoId(null);
+    setEditTitle("");
   };
 
   return (
@@ -93,7 +129,7 @@ const Gallery = () => {
                   {images.map((img) => (
                     <div key={img.id} className="glass rounded-xl overflow-hidden group relative">
                       <div className="aspect-square relative">
-                        <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
+                        <img src={img.url} alt={img.title || img.prompt} className="w-full h-full object-cover" />
                         <button
                           onClick={() => toggleImageVisibility(img.id)}
                           className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
@@ -107,7 +143,42 @@ const Gallery = () => {
                         </button>
                       </div>
                       <div className="p-2 md:p-3 space-y-2">
-                        <p className="text-xs text-foreground/70 line-clamp-1">{img.prompt}</p>
+                        {editingImageId === img.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              placeholder="Enter title..."
+                              className="h-7 text-xs"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveImageTitle(img.id);
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                            />
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => saveImageTitle(img.id)}>
+                              <Check className="w-3 h-3 text-green-500" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={cancelEditing}>
+                              <X className="w-3 h-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 group/title">
+                            <p className="text-xs text-foreground/70 line-clamp-1 flex-1">
+                              {img.title || <span className="text-muted-foreground italic">Add title...</span>}
+                            </p>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-6 w-6 p-0 opacity-0 group-hover/title:opacity-100 transition-opacity"
+                              onClick={() => startEditingImage(img.id, img.title)}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground line-clamp-1">{img.prompt}</p>
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" className="flex-1 h-8" onClick={() => handleDownloadImage(img.url, img.id)}>
                             <Download className="w-3 h-3" />
@@ -150,7 +221,42 @@ const Gallery = () => {
                         </button>
                       </div>
                       <div className="p-3 space-y-2">
-                        <p className="text-sm text-foreground/70 line-clamp-1">{vid.prompt}</p>
+                        {editingVideoId === vid.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              placeholder="Enter title..."
+                              className="h-8 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveVideoTitle(vid.id);
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                            />
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => saveVideoTitle(vid.id)}>
+                              <Check className="w-4 h-4 text-green-500" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={cancelEditing}>
+                              <X className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group/title">
+                            <p className="text-sm font-medium text-foreground flex-1">
+                              {vid.title || <span className="text-muted-foreground italic">Add title...</span>}
+                            </p>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7 w-7 p-0 opacity-0 group-hover/title:opacity-100 transition-opacity"
+                              onClick={() => startEditingVideo(vid.id, vid.title)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground line-clamp-1">{vid.prompt}</p>
                         <div className="flex gap-2">
                           <Button size="sm" variant="secondary" className="flex-1 h-9" onClick={() => handleDownloadVideo(vid.url, vid.id)}>
                             <Download className="w-4 h-4 mr-1" /> Save
