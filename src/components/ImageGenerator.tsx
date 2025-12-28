@@ -41,9 +41,27 @@ const ImageGenerator = () => {
   const handleShare = async (image: GalleryImage) => {
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "Check out this AI-generated image!",
-          text: image.prompt,
+        // Try to share the image as a file if possible
+        const response = await fetch(image.url);
+        const blob = await response.blob();
+        const file = new File([blob], `ai-image-${image.id}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: "Check out this AI-generated image!",
+            text: image.prompt,
+            files: [file],
+          });
+        } else {
+          await navigator.share({
+            title: "Check out this AI-generated image!",
+            text: image.prompt,
+            url: image.url,
+          });
+        }
+        toast({
+          title: "Shared!",
+          description: "Image shared successfully.",
         });
       } else {
         await navigator.clipboard.writeText(image.url);
@@ -52,8 +70,15 @@ const ImageGenerator = () => {
           description: "Image URL copied to clipboard.",
         });
       }
-    } catch {
-      // User cancelled share
+    } catch (error) {
+      // User cancelled share or error occurred
+      if (error instanceof Error && error.name !== 'AbortError') {
+        await navigator.clipboard.writeText(image.url);
+        toast({
+          title: "Link copied!",
+          description: "Image URL copied to clipboard.",
+        });
+      }
     }
   };
 
