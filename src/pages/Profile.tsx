@@ -13,6 +13,17 @@ import { CommentsSection } from "@/components/CommentsSection";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { ReportButton } from "@/components/ReportButton";
 import { ProfileAnalytics } from "@/components/ProfileAnalytics";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ProfileData {
   id: string;
@@ -420,18 +431,38 @@ const Profile = () => {
                         <Edit2 className="w-4 h-4 mr-1" />
                         Edit bio
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={async () => {
-                          await signOut();
-                          navigate("/");
-                        }}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <LogOut className="w-4 h-4 mr-1" />
-                        Log out
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <LogOut className="w-4 h-4 mr-1" />
+                            Log out
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="glass border-border/50">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              You'll need to sign in again to access your account.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                await signOut();
+                                navigate("/");
+                              }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Log out
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   )}
                 </div>
