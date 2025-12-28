@@ -14,16 +14,23 @@ interface VerifiedBadgeProps {
 
 export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }: VerifiedBadgeProps) => {
   const sizeClasses = {
-    sm: "h-3.5 w-3.5",
-    md: "h-4 w-4",
-    lg: "h-5 w-5",
+    sm: "h-4 w-4",
+    md: "h-5 w-5",
+    lg: "h-6 w-6",
   };
 
   const colorClasses = {
-    verified: "text-blue-500 fill-blue-500",
-    admin: "text-purple-500 fill-purple-500",
-    both: "text-amber-500 fill-amber-500",
-    owner: "text-amber-400 fill-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]",
+    verified: "text-blue-500",
+    admin: "text-purple-500",
+    both: "text-amber-500",
+    owner: "text-amber-400",
+  };
+
+  const glowStyles = {
+    verified: { filter: "drop-shadow(0 0 6px rgba(59, 130, 246, 0.8))" },
+    admin: { filter: "drop-shadow(0 0 6px rgba(168, 85, 247, 0.8))" },
+    both: { filter: "drop-shadow(0 0 8px rgba(245, 158, 11, 0.8))" },
+    owner: { filter: "drop-shadow(0 0 12px rgba(251, 191, 36, 1)) drop-shadow(0 0 20px rgba(251, 191, 36, 0.6))" },
   };
 
   const tooltipText = {
@@ -42,6 +49,8 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
           <span className={`inline-flex ${isOwner ? "animate-pulse" : ""}`}>
             <BadgeCheck 
               className={`${colorClasses[type]} ${sizeClasses[size]} ${className}`}
+              style={glowStyles[type]}
+              strokeWidth={2.5}
             />
           </span>
         </TooltipTrigger>
