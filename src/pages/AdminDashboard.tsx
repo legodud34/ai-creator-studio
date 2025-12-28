@@ -589,8 +589,8 @@ const AdminDashboard = () => {
                             </>
                           )}
 
-                          {/* Moderator Role Management - For owners and admins */}
-                          {(isOwner || isAdmin) && !u.is_owner && !u.is_admin && (
+                          {/* Moderator Role Management - Only for owners */}
+                          {isOwner && !u.is_owner && !u.is_admin && (
                             <>
                               {u.is_moderator ? (
                                 <Button
