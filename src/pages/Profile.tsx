@@ -332,12 +332,6 @@ const Profile = () => {
                   <span className="font-bold text-foreground">{isOwnProfile ? videos.length : publicVideoCount}</span>
                   <span className="text-muted-foreground ml-1">videos</span>
                 </div>
-                <div>
-                  <span className="font-bold text-foreground">
-                    {new Date(profileData.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                  </span>
-                  <span className="text-muted-foreground ml-1">joined</span>
-                </div>
               </div>
             </div>
           </div>
