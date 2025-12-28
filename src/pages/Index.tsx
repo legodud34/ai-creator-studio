@@ -3,20 +3,17 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Mic, Video, LayoutGrid, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Mic, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
-import { useGallery } from "@/contexts/GalleryContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
-  const { images, videos } = useGallery();
   const { user, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const totalItems = images.length + videos.length;
 
   useEffect(() => {
     const checkAdminOrOwner = async () => {
@@ -52,17 +49,6 @@ const Index = () => {
             </Link>
             {user ? (
               <>
-                <Link to="/gallery">
-                  <Button variant="outline" size="sm" className="glass border-border/50 h-9">
-                    <LayoutGrid className="w-4 h-4 mr-1" />
-                    Gallery
-                    {totalItems > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
-                        {totalItems}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
                 <Link to={`/profile/${profile?.username}`}>
                   <Avatar className="w-9 h-9 border border-primary/50 hover:border-primary transition-colors cursor-pointer">
                     <AvatarImage src={profile?.avatar_url || undefined} />
