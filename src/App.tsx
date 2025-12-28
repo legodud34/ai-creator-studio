@@ -9,6 +9,10 @@ import Gallery from "./pages/Gallery";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Explore from "./pages/Explore";
+import Shorts from "./pages/Shorts";
+import ShortVideos from "./pages/ShortVideos";
+import LongVideos from "./pages/LongVideos";
+import Movies from "./pages/Movies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +30,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile/:username" element={<Profile />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/shorts" element={<Shorts />} />
+            <Route path="/short-videos" element={<ShortVideos />} />
+            <Route path="/long-videos" element={<LongVideos />} />
+            <Route path="/movies" element={<Movies />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
