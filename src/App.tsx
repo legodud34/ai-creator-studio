@@ -14,6 +14,7 @@ import ShortVideos from "./pages/ShortVideos";
 import LongVideos from "./pages/LongVideos";
 import Movies from "./pages/Movies";
 import AdminDashboard from "./pages/AdminDashboard";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/long-videos" element={<LongVideos />} />
             <Route path="/movies" element={<Movies />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
