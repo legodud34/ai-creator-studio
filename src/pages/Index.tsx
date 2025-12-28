@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Mic, Video, LayoutGrid, Compass, LogIn } from "lucide-react";
+import { Image, Mic, Video, LayoutGrid, Compass, LogIn, Zap, PlayCircle, Clock, Film } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
@@ -62,6 +62,34 @@ const Index = () => {
                 </Button>
               </Link>
             )}
+          </div>
+
+          {/* Video Category Navigation */}
+          <div className="flex flex-wrap justify-center gap-2 mb-6">
+            <Link to="/shorts">
+              <Button variant="ghost" size="sm" className="glass border border-accent/30 hover:border-accent/60 text-accent">
+                <Zap className="w-4 h-4 mr-1" />
+                Shorts
+              </Button>
+            </Link>
+            <Link to="/short-videos">
+              <Button variant="ghost" size="sm" className="glass border border-primary/30 hover:border-primary/60 text-primary">
+                <PlayCircle className="w-4 h-4 mr-1" />
+                Short Videos
+              </Button>
+            </Link>
+            <Link to="/long-videos">
+              <Button variant="ghost" size="sm" className="glass border border-accent/30 hover:border-accent/60 text-accent">
+                <Clock className="w-4 h-4 mr-1" />
+                Long Videos
+              </Button>
+            </Link>
+            <Link to="/movies">
+              <Button variant="ghost" size="sm" className="glass border border-primary/30 hover:border-primary/60 text-primary">
+                <Film className="w-4 h-4 mr-1" />
+                Movies
+              </Button>
+            </Link>
           </div>
 
           <div className="text-center space-y-4">

@@ -210,6 +210,7 @@ export type Database = {
       videos: {
         Row: {
           created_at: string
+          duration_seconds: number | null
           id: string
           is_public: boolean
           prompt: string
@@ -218,6 +219,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           is_public?: boolean
           prompt: string
@@ -226,6 +228,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           is_public?: boolean
           prompt?: string

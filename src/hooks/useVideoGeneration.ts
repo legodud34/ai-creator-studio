@@ -18,7 +18,7 @@ export const useVideoGeneration = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const pollForCompletion = useCallback(async (predictionId: string, prompt: string): Promise<GeneratedVideo | null> => {
+  const pollForCompletion = useCallback(async (predictionId: string, prompt: string, durationSeconds: number): Promise<GeneratedVideo | null> => {
     const maxAttempts = 120;
     let attempts = 0;
 
@@ -33,7 +33,7 @@ export const useVideoGeneration = () => {
         if (data.status === "succeeded") {
           const videoUrl = Array.isArray(data.output) ? data.output[0] : data.output;
           
-          const savedVideo = await addVideo(videoUrl, prompt);
+          const savedVideo = await addVideo(videoUrl, prompt, durationSeconds);
           
           if (savedVideo) {
             return {
@@ -93,7 +93,7 @@ export const useVideoGeneration = () => {
 
       setProgress("Generating... This takes 1-2 min");
 
-      const newVideo = await pollForCompletion(data.id, prompt);
+      const newVideo = await pollForCompletion(data.id, prompt, duration);
 
       if (newVideo) {
         toast({
