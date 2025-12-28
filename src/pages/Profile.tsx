@@ -12,6 +12,7 @@ import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { ReportButton } from "@/components/ReportButton";
+import { ProfileAnalytics } from "@/components/ProfileAnalytics";
 
 interface ProfileData {
   id: string;
@@ -408,6 +409,11 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* Analytics Section - Only for own profile */}
+        {isOwnProfile && profileData && (
+          <ProfileAnalytics userId={profileData.id} />
+        )}
 
         {/* Images Section */}
         {images.length > 0 && (

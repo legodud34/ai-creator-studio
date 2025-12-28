@@ -70,8 +70,34 @@ const ShortVideos = () => {
         ...v,
         profiles: v.profiles,
       }));
-      setVideos(formattedData);
-      fetchEngagementCounts(formattedData.map((v: any) => v.id));
+      
+      // Sort by trending (like count) first
+      const videoIds = formattedData.map((v: any) => v.id);
+      if (videoIds.length > 0) {
+        const { data: likesData } = await supabase
+          .from("likes")
+          .select("video_id")
+          .in("video_id", videoIds);
+        
+        const likeMap = new Map<string, number>();
+        likesData?.forEach((like) => {
+          if (like.video_id) {
+            likeMap.set(like.video_id, (likeMap.get(like.video_id) || 0) + 1);
+          }
+        });
+        
+        // Sort by likes (trending first)
+        formattedData.sort((a: any, b: any) => {
+          const aLikes = likeMap.get(a.id) || 0;
+          const bLikes = likeMap.get(b.id) || 0;
+          return bLikes - aLikes;
+        });
+        
+        setVideos(formattedData);
+        fetchEngagementCounts(videoIds);
+      } else {
+        setVideos(formattedData);
+      }
     }
     setIsLoading(false);
   };

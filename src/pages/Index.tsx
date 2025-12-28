@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, BarChart3 } from "lucide-react";
+import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import TrendingSection from "@/components/TrendingSection";
@@ -53,11 +53,6 @@ const Index = () => {
             {user ? (
               <>
                 <NotificationsDropdown />
-                <Link to="/analytics">
-                  <Button variant="outline" size="sm" className="glass border-border/50 h-9">
-                    <BarChart3 className="w-4 h-4" />
-                  </Button>
-                </Link>
                 <Link to={`/profile/${profile?.username}`}>
                   <Avatar className="w-9 h-9 border border-primary/50 hover:border-primary transition-colors cursor-pointer">
                     <AvatarImage src={profile?.avatar_url || undefined} />
