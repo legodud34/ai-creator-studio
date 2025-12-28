@@ -36,6 +36,9 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  Crown,
+  ShieldPlus,
+  ShieldMinus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +76,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -86,15 +90,16 @@ const AdminDashboard = () => {
         return;
       }
 
-      // Check if user is admin
+      // Check if user is admin or owner
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      if (!roleData) {
+      const roles = roleData?.map(r => r.role) || [];
+      const hasAdminAccess = roles.includes("admin") || roles.includes("owner");
+      
+      if (!hasAdminAccess) {
         toast({
           title: "Access denied",
           description: "You don't have admin privileges.",
@@ -104,7 +109,8 @@ const AdminDashboard = () => {
         return;
       }
 
-      setIsAdmin(true);
+      setIsAdmin(roles.includes("admin"));
+      setIsOwner(roles.includes("owner"));
       await fetchData();
       setIsLoading(false);
     };
@@ -236,6 +242,39 @@ const AdminDashboard = () => {
       toast({ title: "Failed to unban user", variant: "destructive" });
     } else {
       toast({ title: "User unbanned" });
+      fetchData();
+    }
+  };
+
+  const handleGrantRole = async (userId: string, role: "admin" | "owner") => {
+    const { error } = await supabase.from("user_roles").insert({
+      user_id: userId,
+      role,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: `User already has ${role} role`, variant: "destructive" });
+      } else {
+        toast({ title: `Failed to grant ${role} role`, variant: "destructive" });
+      }
+    } else {
+      toast({ title: `${role.charAt(0).toUpperCase() + role.slice(1)} role granted` });
+      fetchData();
+    }
+  };
+
+  const handleRevokeRole = async (userId: string, role: "admin" | "owner") => {
+    const { error } = await supabase
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("role", role);
+
+    if (error) {
+      toast({ title: `Failed to revoke ${role} role`, variant: "destructive" });
+    } else {
+      toast({ title: `${role.charAt(0).toUpperCase() + role.slice(1)} role revoked` });
       fetchData();
     }
   };
@@ -382,7 +421,8 @@ const AdminDashboard = () => {
                         {new Date(u.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1 flex-wrap">
+                          {/* Verification */}
                           {u.is_verified ? (
                             <Button
                               variant="ghost"
@@ -405,6 +445,34 @@ const AdminDashboard = () => {
                             </Button>
                           )}
 
+                          {/* Role Management - Only for owners */}
+                          {isOwner && !u.is_owner && (
+                            <>
+                              {u.is_admin ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRevokeRole(u.id, "admin")}
+                                  className="text-purple-400"
+                                >
+                                  <ShieldMinus className="w-4 h-4 mr-1" />
+                                  Remove Admin
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGrantRole(u.id, "admin")}
+                                  className="text-purple-500"
+                                >
+                                  <ShieldPlus className="w-4 h-4 mr-1" />
+                                  Make Admin
+                                </Button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Ban/Unban */}
                           {u.is_banned ? (
                             <Button
                               variant="ghost"
@@ -422,7 +490,7 @@ const AdminDashboard = () => {
                                   variant="ghost"
                                   size="sm"
                                   className="text-destructive"
-                                  disabled={u.id === user?.id}
+                                  disabled={u.id === user?.id || u.is_owner}
                                 >
                                   <Ban className="w-4 h-4 mr-1" />
                                   Ban
