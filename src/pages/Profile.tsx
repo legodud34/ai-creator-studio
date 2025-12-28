@@ -47,6 +47,7 @@ const Profile = () => {
   const [selectedImage, setSelectedImage] = useState<ContentItem | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<ContentItem | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -87,14 +88,23 @@ const Profile = () => {
       setEditBio(profile.bio || "");
       fetchFollowCounts(profile.id);
 
-      // Check if user is verified
-      const { data: verifiedData } = await supabase
-        .from("verified_users")
-        .select("id")
-        .eq("user_id", profile.id)
-        .maybeSingle();
+      // Check if user is verified and/or admin
+      const [{ data: verifiedData }, { data: adminData }] = await Promise.all([
+        supabase
+          .from("verified_users")
+          .select("id")
+          .eq("user_id", profile.id)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", profile.id)
+          .eq("role", "admin")
+          .maybeSingle()
+      ]);
       
       setIsVerified(!!verifiedData);
+      setIsAdmin(!!adminData);
 
       const isOwner = user?.id === profile.id;
       
@@ -298,7 +308,12 @@ const Profile = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-2xl font-bold">@{profileData.username}</h2>
-                  {isVerified && <VerifiedBadge size="lg" />}
+                  {(isVerified || isAdmin) && (
+                    <VerifiedBadge 
+                      size="lg" 
+                      type={isVerified && isAdmin ? "both" : isAdmin ? "admin" : "verified"} 
+                    />
+                  )}
                 </div>
                 {!isOwnProfile && (
                   <FollowButton
