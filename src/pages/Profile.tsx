@@ -49,6 +49,7 @@ const Profile = () => {
   const [selectedVideo, setSelectedVideo] = useState<ContentItem | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOwnerRole, setIsOwnerRole] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -89,8 +90,8 @@ const Profile = () => {
       setEditBio(profile.bio || "");
       fetchFollowCounts(profile.id);
 
-      // Check if user is verified and/or admin
-      const [{ data: verifiedData }, { data: adminData }] = await Promise.all([
+      // Check if user is verified and/or admin/owner
+      const [{ data: verifiedData }, { data: rolesData }] = await Promise.all([
         supabase
           .from("verified_users")
           .select("id")
@@ -98,14 +99,14 @@ const Profile = () => {
           .maybeSingle(),
         supabase
           .from("user_roles")
-          .select("id")
+          .select("role")
           .eq("user_id", profile.id)
-          .eq("role", "admin")
-          .maybeSingle()
       ]);
       
       setIsVerified(!!verifiedData);
-      setIsAdmin(!!adminData);
+      const roles = rolesData?.map(r => r.role) || [];
+      setIsAdmin(roles.includes("admin"));
+      setIsOwnerRole(roles.includes("owner"));
 
       const isOwner = user?.id === profile.id;
       
@@ -309,10 +310,14 @@ const Profile = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-2xl font-bold">@{profileData.username}</h2>
-                  {(isVerified || isAdmin) && (
+                  {(isOwnerRole || isVerified || isAdmin) && (
                     <VerifiedBadge 
                       size="lg" 
-                      type={isVerified && isAdmin ? "both" : isAdmin ? "admin" : "verified"} 
+                      type={
+                        isOwnerRole ? "owner" : 
+                        isVerified && isAdmin ? "both" : 
+                        isAdmin ? "admin" : "verified"
+                      } 
                     />
                   )}
                 </div>

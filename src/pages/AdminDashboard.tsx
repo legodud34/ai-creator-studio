@@ -49,6 +49,7 @@ interface UserProfile {
   created_at: string;
   is_verified?: boolean;
   is_admin?: boolean;
+  is_owner?: boolean;
   is_banned?: boolean;
 }
 
@@ -120,21 +121,24 @@ const AdminDashboard = () => {
 
     if (profiles) {
       // Fetch verification and ban status for each user
-      const [{ data: verifiedUsers }, { data: adminUsers }, { data: bannedUsers }] =
+      const [{ data: verifiedUsers }, { data: adminUsers }, { data: ownerUsers }, { data: bannedUsers }] =
         await Promise.all([
           supabase.from("verified_users").select("user_id"),
           supabase.from("user_roles").select("user_id").eq("role", "admin"),
+          supabase.from("user_roles").select("user_id").eq("role", "owner"),
           supabase.from("banned_users").select("user_id"),
         ]);
 
       const verifiedIds = new Set(verifiedUsers?.map((v) => v.user_id) || []);
       const adminIds = new Set(adminUsers?.map((a) => a.user_id) || []);
+      const ownerIds = new Set(ownerUsers?.map((o) => o.user_id) || []);
       const bannedIds = new Set(bannedUsers?.map((b) => b.user_id) || []);
 
       const enrichedProfiles = profiles.map((p) => ({
         ...p,
         is_verified: verifiedIds.has(p.id),
         is_admin: adminIds.has(p.id),
+        is_owner: ownerIds.has(p.id),
         is_banned: bannedIds.has(p.id),
       }));
 
@@ -339,11 +343,13 @@ const AdminDashboard = () => {
                           </Avatar>
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium">@{u.username}</span>
-                            {(u.is_verified || u.is_admin) && (
+                            {(u.is_owner || u.is_verified || u.is_admin) && (
                               <VerifiedBadge
                                 size="sm"
                                 type={
-                                  u.is_verified && u.is_admin
+                                  u.is_owner
+                                    ? "owner"
+                                    : u.is_verified && u.is_admin
                                     ? "both"
                                     : u.is_admin
                                     ? "admin"
@@ -355,9 +361,14 @@ const AdminDashboard = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-wrap">
                           {u.is_banned && (
                             <Badge variant="destructive">Banned</Badge>
+                          )}
+                          {u.is_owner && (
+                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                              Owner
+                            </Badge>
                           )}
                           {u.is_admin && <Badge variant="secondary">Admin</Badge>}
                           {u.is_verified && (
