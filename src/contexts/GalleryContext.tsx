@@ -1,90 +1,192 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { GeneratedImage } from "@/hooks/useImageGeneration";
-import { GeneratedVideo } from "@/hooks/useVideoGeneration";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const IMAGES_STORAGE_KEY = "afterglow_images";
-const VIDEOS_STORAGE_KEY = "afterglow_videos";
+export interface GalleryImage {
+  id: string;
+  prompt: string;
+  url: string;
+  is_public: boolean;
+  created_at: string;
+}
+
+export interface GalleryVideo {
+  id: string;
+  prompt: string;
+  url: string;
+  is_public: boolean;
+  created_at: string;
+}
 
 interface GalleryContextType {
-  images: GeneratedImage[];
-  videos: GeneratedVideo[];
-  addImage: (image: GeneratedImage) => void;
-  addVideo: (video: GeneratedVideo) => void;
-  deleteImage: (id: string) => void;
-  deleteVideo: (id: string) => void;
+  images: GalleryImage[];
+  videos: GalleryVideo[];
+  isLoading: boolean;
+  addImage: (url: string, prompt: string) => Promise<GalleryImage | null>;
+  addVideo: (url: string, prompt: string) => Promise<GalleryVideo | null>;
+  deleteImage: (id: string) => Promise<void>;
+  deleteVideo: (id: string) => Promise<void>;
+  toggleImageVisibility: (id: string) => Promise<void>;
+  toggleVideoVisibility: (id: string) => Promise<void>;
+  refreshGallery: () => Promise<void>;
 }
 
 const GalleryContext = createContext<GalleryContextType | null>(null);
 
-const loadFromStorage = <T,>(key: string): T[] => {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Convert date strings back to Date objects
-      return parsed.map((item: any) => ({
-        ...item,
-        createdAt: new Date(item.createdAt),
-      }));
-    }
-  } catch (error) {
-    console.error(`Failed to load ${key} from storage:`, error);
-  }
-  return [];
-};
-
-const saveToStorage = <T,>(key: string, data: T[]) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error(`Failed to save ${key} to storage:`, error);
-  }
-};
-
 export const GalleryProvider = ({ children }: { children: ReactNode }) => {
-  const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [videos, setVideos] = useState<GeneratedVideo[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useAuth();
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [videos, setVideos] = useState<GalleryVideo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    setImages(loadFromStorage<GeneratedImage>(IMAGES_STORAGE_KEY));
-    setVideos(loadFromStorage<GeneratedVideo>(VIDEOS_STORAGE_KEY));
-    setIsLoaded(true);
-  }, []);
-
-  // Save images to localStorage when they change
-  useEffect(() => {
-    if (isLoaded) {
-      saveToStorage(IMAGES_STORAGE_KEY, images);
+  const fetchGallery = async () => {
+    if (!user) {
+      setImages([]);
+      setVideos([]);
+      return;
     }
-  }, [images, isLoaded]);
 
-  // Save videos to localStorage when they change
+    setIsLoading(true);
+
+    const [imagesResult, videosResult] = await Promise.all([
+      supabase
+        .from("images")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("videos")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    setImages(imagesResult.data || []);
+    setVideos(videosResult.data || []);
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    if (isLoaded) {
-      saveToStorage(VIDEOS_STORAGE_KEY, videos);
+    fetchGallery();
+  }, [user]);
+
+  const refreshGallery = async () => {
+    await fetchGallery();
+  };
+
+  const addImage = async (url: string, prompt: string): Promise<GalleryImage | null> => {
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from("images")
+      .insert({
+        user_id: user.id,
+        url,
+        prompt,
+        is_public: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding image:", error);
+      return null;
     }
-  }, [videos, isLoaded]);
 
-  const addImage = (image: GeneratedImage) => {
-    setImages((prev) => [image, ...prev]);
+    setImages((prev) => [data, ...prev]);
+    return data;
   };
 
-  const addVideo = (video: GeneratedVideo) => {
-    setVideos((prev) => [video, ...prev]);
+  const addVideo = async (url: string, prompt: string): Promise<GalleryVideo | null> => {
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from("videos")
+      .insert({
+        user_id: user.id,
+        url,
+        prompt,
+        is_public: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding video:", error);
+      return null;
+    }
+
+    setVideos((prev) => [data, ...prev]);
+    return data;
   };
 
-  const deleteImage = (id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
+  const deleteImage = async (id: string) => {
+    const { error } = await supabase.from("images").delete().eq("id", id);
+
+    if (!error) {
+      setImages((prev) => prev.filter((img) => img.id !== id));
+    }
   };
 
-  const deleteVideo = (id: string) => {
-    setVideos((prev) => prev.filter((vid) => vid.id !== id));
+  const deleteVideo = async (id: string) => {
+    const { error } = await supabase.from("videos").delete().eq("id", id);
+
+    if (!error) {
+      setVideos((prev) => prev.filter((vid) => vid.id !== id));
+    }
+  };
+
+  const toggleImageVisibility = async (id: string) => {
+    const image = images.find((img) => img.id === id);
+    if (!image) return;
+
+    const { error } = await supabase
+      .from("images")
+      .update({ is_public: !image.is_public })
+      .eq("id", id);
+
+    if (!error) {
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === id ? { ...img, is_public: !img.is_public } : img
+        )
+      );
+    }
+  };
+
+  const toggleVideoVisibility = async (id: string) => {
+    const video = videos.find((vid) => vid.id === id);
+    if (!video) return;
+
+    const { error } = await supabase
+      .from("videos")
+      .update({ is_public: !video.is_public })
+      .eq("id", id);
+
+    if (!error) {
+      setVideos((prev) =>
+        prev.map((vid) =>
+          vid.id === id ? { ...vid, is_public: !vid.is_public } : vid
+        )
+      );
+    }
   };
 
   return (
-    <GalleryContext.Provider value={{ images, videos, addImage, addVideo, deleteImage, deleteVideo }}>
+    <GalleryContext.Provider
+      value={{
+        images,
+        videos,
+        isLoading,
+        addImage,
+        addVideo,
+        deleteImage,
+        deleteVideo,
+        toggleImageVisibility,
+        toggleVideoVisibility,
+        refreshGallery,
+      }}
+    >
       {children}
     </GalleryContext.Provider>
   );

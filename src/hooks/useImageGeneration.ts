@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGallery } from "@/contexts/GalleryContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface GeneratedImage {
   id: string;
@@ -13,6 +14,7 @@ export interface GeneratedImage {
 export const useImageGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { images, addImage, deleteImage } = useGallery();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const generateImage = async (prompt: string) => {
@@ -20,6 +22,15 @@ export const useImageGeneration = () => {
       toast({
         title: "Empty prompt",
         description: "Please enter a description for your image.",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to generate images.",
         variant: "destructive",
       });
       return null;
@@ -40,21 +51,23 @@ export const useImageGeneration = () => {
         throw new Error(data.error);
       }
 
-      const newImage: GeneratedImage = {
-        id: crypto.randomUUID(),
-        prompt,
-        imageUrl: data.imageUrl,
-        createdAt: new Date(),
-      };
+      const savedImage = await addImage(data.imageUrl, prompt);
 
-      addImage(newImage);
+      if (savedImage) {
+        toast({
+          title: "Image generated!",
+          description: "Your image has been created successfully.",
+        });
 
-      toast({
-        title: "Image generated!",
-        description: "Your image has been created successfully.",
-      });
+        return {
+          id: savedImage.id,
+          prompt,
+          imageUrl: data.imageUrl,
+          createdAt: new Date(savedImage.created_at),
+        };
+      }
 
-      return newImage;
+      return null;
     } catch (error) {
       console.error("Error generating image:", error);
       toast({

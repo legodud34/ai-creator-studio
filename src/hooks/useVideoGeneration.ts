@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGallery } from "@/contexts/GalleryContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface GeneratedVideo {
   id: string;
@@ -14,6 +15,7 @@ export const useVideoGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState("");
   const { videos, addVideo, deleteVideo } = useGallery();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const pollForCompletion = useCallback(async (predictionId: string, prompt: string): Promise<GeneratedVideo | null> => {
@@ -30,12 +32,18 @@ export const useVideoGeneration = () => {
 
         if (data.status === "succeeded") {
           const videoUrl = Array.isArray(data.output) ? data.output[0] : data.output;
-          return {
-            id: predictionId,
-            prompt,
-            videoUrl,
-            createdAt: new Date(),
-          };
+          
+          const savedVideo = await addVideo(videoUrl, prompt);
+          
+          if (savedVideo) {
+            return {
+              id: savedVideo.id,
+              prompt,
+              videoUrl,
+              createdAt: new Date(savedVideo.created_at),
+            };
+          }
+          return null;
         }
 
         if (data.status === "failed" || data.status === "canceled") {
@@ -51,13 +59,22 @@ export const useVideoGeneration = () => {
     }
 
     throw new Error("Video generation timed out");
-  }, []);
+  }, [addVideo]);
 
   const generateVideo = async (prompt: string, aspectRatio: string = "16:9", duration: number = 5) => {
     if (!prompt.trim()) {
       toast({
         title: "Empty prompt",
         description: "Please enter a description for your video.",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to generate videos.",
         variant: "destructive",
       });
       return null;
@@ -79,7 +96,6 @@ export const useVideoGeneration = () => {
       const newVideo = await pollForCompletion(data.id, prompt);
 
       if (newVideo) {
-        addVideo(newVideo);
         toast({
           title: "Video generated!",
           description: "Your video is ready.",
