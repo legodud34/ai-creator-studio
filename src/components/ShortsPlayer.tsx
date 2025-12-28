@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, Pause, Play, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
 import ShareButtons from "@/components/ShareButtons";
@@ -37,11 +38,41 @@ interface ShortsPlayerProps {
 
 export const ShortsPlayer = ({ videos, likeCounts, commentCounts }: ShortsPlayerProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    const video = videos[currentIndex];
+    if (!video) return;
+    
+    try {
+      const response = await fetch(video.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `afterglow-${video.id}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Downloaded!",
+        description: "Video saved to your device.",
+      });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not download the video.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const currentVideo = videos[currentIndex];
 
@@ -231,6 +262,16 @@ export const ShortsPlayer = ({ videos, likeCounts, commentCounts }: ShortsPlayer
               </div>
             </SheetContent>
           </Sheet>
+
+          <button 
+            className="flex flex-col items-center gap-1"
+            onClick={handleDownload}
+          >
+            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center">
+              <Download className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-white text-xs">Save</span>
+          </button>
 
           <ShareButtons 
             url={`${window.location.origin}/shorts`} 
