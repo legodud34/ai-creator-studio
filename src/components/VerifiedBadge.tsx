@@ -1,4 +1,4 @@
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Crown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -41,13 +41,14 @@ export const VerifiedBadge = ({ size = "md", type = "verified", className = "" }
   };
 
   const isOwner = type === "owner";
+  const IconComponent = isOwner ? Crown : BadgeCheck;
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <span className={`inline-flex ${isOwner ? "animate-pulse" : ""}`}>
-            <BadgeCheck 
+            <IconComponent 
               className={`${colorClasses[type]} ${sizeClasses[size]} ${className}`}
               style={glowStyles[type]}
               strokeWidth={2.5}
