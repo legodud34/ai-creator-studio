@@ -13,6 +13,7 @@ import Shorts from "./pages/Shorts";
 import ShortVideos from "./pages/ShortVideos";
 import LongVideos from "./pages/LongVideos";
 import Movies from "./pages/Movies";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/short-videos" element={<ShortVideos />} />
             <Route path="/long-videos" element={<LongVideos />} />
             <Route path="/movies" element={<Movies />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

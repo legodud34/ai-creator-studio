@@ -11,6 +11,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { ReportButton } from "@/components/ReportButton";
 
 interface ProfileData {
   id: string;
@@ -316,10 +317,16 @@ const Profile = () => {
                   )}
                 </div>
                 {!isOwnProfile && (
-                  <FollowButton
-                    targetUserId={profileData.id}
-                    onFollowChange={() => fetchFollowCounts(profileData.id)}
-                  />
+                  <div className="flex items-center gap-2">
+                    <FollowButton
+                      targetUserId={profileData.id}
+                      onFollowChange={() => fetchFollowCounts(profileData.id)}
+                    />
+                    <ReportButton
+                      reportedUserId={profileData.id}
+                      contentType="profile"
+                    />
+                  </div>
                 )}
               </div>
               

@@ -1,20 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Mic, Video, LayoutGrid, Compass, LogIn, Zap, PlayCircle, Clock, Film } from "lucide-react";
+import { Image, Mic, Video, LayoutGrid, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import VoiceChat from "@/components/VoiceChat";
 import { useGallery } from "@/contexts/GalleryContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
   const { images, videos } = useGallery();
   const { user, profile } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
   const totalItems = images.length + videos.length;
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, [user]);
 
   return (
     <div className="min-h-screen gradient-surface">
@@ -53,6 +72,14 @@ const Index = () => {
                     </AvatarFallback>
                   </Avatar>
                 </Link>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="glass border-purple-500/50 text-purple-400 hover:border-purple-500 h-9">
+                      <Shield className="w-4 h-4 mr-1" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
               </>
             ) : (
               <Link to="/auth">
