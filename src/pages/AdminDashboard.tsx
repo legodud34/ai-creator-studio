@@ -39,6 +39,7 @@ import {
   Crown,
   ShieldPlus,
   ShieldMinus,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +56,8 @@ interface UserProfile {
   is_moderator?: boolean;
   is_owner?: boolean;
   is_banned?: boolean;
+  is_suspended?: boolean;
+  suspended_until?: string | null;
 }
 
 interface Report {
@@ -84,6 +87,8 @@ const AdminDashboard = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [banReason, setBanReason] = useState("");
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspendDays, setSuspendDays] = useState("");
 
   const [roleUsername, setRoleUsername] = useState("");
   const [isRoleUpdating, setIsRoleUpdating] = useState(false);
@@ -139,24 +144,36 @@ const AdminDashboard = () => {
           supabase.from("user_roles").select("user_id").eq("role", "admin"),
           supabase.from("user_roles").select("user_id").eq("role", "moderator"),
           supabase.from("user_roles").select("user_id").eq("role", "owner"),
-          supabase.from("banned_users").select("user_id"),
+          supabase.from("banned_users").select("user_id, expires_at"),
         ]);
 
       const verifiedIds = new Set(verifiedUsers?.map((v) => v.user_id) || []);
       const adminIds = new Set(adminUsers?.map((a) => a.user_id) || []);
       const moderatorIds = new Set(moderatorUsers?.map((m) => m.user_id) || []);
       const ownerIds = new Set(ownerUsers?.map((o) => o.user_id) || []);
-      const bannedIds = new Set(bannedUsers?.map((b) => b.user_id) || []);
+      
+      // Create maps for banned/suspended users
+      const bannedMap = new Map<string, { expires_at: string | null }>();
+      bannedUsers?.forEach((b) => bannedMap.set(b.user_id, { expires_at: b.expires_at }));
 
       const enrichedProfiles = profiles.map((p) => {
         const isOwner = ownerIds.has(p.id);
+        const banInfo = bannedMap.get(p.id);
+        const now = new Date();
+        
+        // Check if suspended (has expires_at in the future) vs banned (no expires_at or expired)
+        const isSuspended = banInfo && banInfo.expires_at && new Date(banInfo.expires_at) > now;
+        const isBanned = banInfo && (!banInfo.expires_at || new Date(banInfo.expires_at) <= now);
+        
         return {
           ...p,
-          is_verified: isOwner || verifiedIds.has(p.id), // Owners are always verified
+          is_verified: isOwner || verifiedIds.has(p.id),
           is_admin: adminIds.has(p.id),
           is_moderator: moderatorIds.has(p.id),
           is_owner: isOwner,
-          is_banned: bannedIds.has(p.id),
+          is_banned: isBanned && !banInfo.expires_at, // Only permanent bans
+          is_suspended: isSuspended,
+          suspended_until: isSuspended ? banInfo.expires_at : null,
         };
       });
 
@@ -254,6 +271,52 @@ const AdminDashboard = () => {
       toast({ title: "Failed to unban user", variant: "destructive" });
     } else {
       toast({ title: "User unbanned" });
+      fetchData();
+    }
+  };
+
+  const handleSuspendUser = async (userId: string) => {
+    if (!suspendReason.trim()) {
+      toast({ title: "Please provide a suspension reason", variant: "destructive" });
+      return;
+    }
+    
+    const days = parseInt(suspendDays, 10);
+    if (isNaN(days) || days < 1) {
+      toast({ title: "Please enter a valid number of days", variant: "destructive" });
+      return;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + days);
+
+    const { error } = await supabase.from("banned_users").insert({
+      user_id: userId,
+      reason: suspendReason,
+      banned_by: user?.id,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (error) {
+      toast({ title: "Failed to suspend user", variant: "destructive" });
+    } else {
+      toast({ title: `User suspended for ${days} day${days > 1 ? 's' : ''}` });
+      setSuspendReason("");
+      setSuspendDays("");
+      fetchData();
+    }
+  };
+
+  const handleUnsuspendUser = async (userId: string) => {
+    const { error } = await supabase
+      .from("banned_users")
+      .delete()
+      .eq("user_id", userId);
+
+    if (error) {
+      toast({ title: "Failed to unsuspend user", variant: "destructive" });
+    } else {
+      toast({ title: "User unsuspended" });
       fetchData();
     }
   };
@@ -562,6 +625,11 @@ const AdminDashboard = () => {
                           {u.is_banned && (
                             <Badge variant="destructive">Banned</Badge>
                           )}
+                          {u.is_suspended && (
+                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                              Suspended until {new Date(u.suspended_until!).toLocaleDateString()}
+                            </Badge>
+                          )}
                           {u.is_owner && (
                             <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                               Owner
@@ -667,8 +735,79 @@ const AdminDashboard = () => {
                             </>
                           )}
 
+                          {/* Suspend/Unsuspend - Only for admins and owners */}
+                          {(isOwner || isAdmin) && !u.is_banned && !u.is_owner && (
+                            <>
+                              {u.is_suspended ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUnsuspendUser(u.id)}
+                                  className="text-orange-400"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Unsuspend
+                                </Button>
+                              ) : (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-orange-500"
+                                      disabled={u.id === user?.id}
+                                    >
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      Suspend
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Suspend @{u.username}?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will temporarily prevent the user from accessing the platform.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="space-y-3 mt-2">
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        placeholder="Number of days..."
+                                        value={suspendDays}
+                                        onChange={(e) => setSuspendDays(e.target.value)}
+                                      />
+                                      <Textarea
+                                        placeholder="Reason for suspension..."
+                                        value={suspendReason}
+                                        onChange={(e) => setSuspendReason(e.target.value)}
+                                      />
+                                    </div>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel
+                                        onClick={() => {
+                                          setSuspendReason("");
+                                          setSuspendDays("");
+                                        }}
+                                      >
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleSuspendUser(u.id)}
+                                        className="bg-orange-600 text-white hover:bg-orange-700"
+                                      >
+                                        Suspend User
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </>
+                          )}
+
                           {/* Ban/Unban - Only for admins and owners */}
-                          {(isOwner || isAdmin) && (
+                          {(isOwner || isAdmin) && !u.is_suspended && (
                             <>
                               {u.is_banned ? (
                                 <Button
@@ -681,50 +820,49 @@ const AdminDashboard = () => {
                                   Unban
                                 </Button>
                               ) : (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive"
-                                  disabled={u.id === user?.id || u.is_owner}
-                                >
-                                  <Ban className="w-4 h-4 mr-1" />
-                                  Ban
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Ban @{u.username}?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will prevent the user from accessing the
-                                    platform.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <Textarea
-                                  placeholder="Reason for ban..."
-                                  value={banReason}
-                                  onChange={(e) => setBanReason(e.target.value)}
-                                  className="mt-2"
-                                />
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel
-                                    onClick={() => setBanReason("")}
-                                  >
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleBanUser(u.id)}
-                                    className="bg-destructive text-destructive-foreground"
-                                  >
-                                    Ban User
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive"
+                                      disabled={u.id === user?.id || u.is_owner}
+                                    >
+                                      <Ban className="w-4 h-4 mr-1" />
+                                      Ban
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Ban @{u.username}?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently prevent the user from accessing the platform.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <Textarea
+                                      placeholder="Reason for ban..."
+                                      value={banReason}
+                                      onChange={(e) => setBanReason(e.target.value)}
+                                      className="mt-2"
+                                    />
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel
+                                        onClick={() => setBanReason("")}
+                                      >
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleBanUser(u.id)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Ban User
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </>
                           )}
                         </div>
