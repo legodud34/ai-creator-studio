@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_genre_assignments: {
+        Row: {
+          admin_user_id: string
+          assigned_by: string
+          created_at: string
+          genre: string
+          id: string
+        }
+        Insert: {
+          admin_user_id: string
+          assigned_by: string
+          created_at?: string
+          genre: string
+          id?: string
+        }
+        Update: {
+          admin_user_id?: string
+          assigned_by?: string
+          created_at?: string
+          genre?: string
+          id?: string
+        }
+        Relationships: []
+      }
       admin_monthly_reports: {
         Row: {
           admin_user_id: string
@@ -514,6 +538,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_genre: { Args: { _admin_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -526,6 +551,10 @@ export type Database = {
         Returns: boolean
       }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      mod_can_access_genre: {
+        Args: { _genre: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "owner"

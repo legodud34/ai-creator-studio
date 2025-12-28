@@ -91,13 +91,13 @@ interface Report {
   escalated_to_user?: { username: string };
 }
 
-interface ModeratorGenreAssignment {
+interface AdminGenreAssignment {
   id: string;
-  moderator_user_id: string;
+  admin_user_id: string;
   genre: string;
   assigned_by: string;
   created_at: string;
-  moderator?: { username: string };
+  admin?: { username: string };
 }
 
 interface ModeratorAdminAssignment {
@@ -155,16 +155,16 @@ const AdminDashboard = () => {
   const [roleUsername, setRoleUsername] = useState("");
   const [isRoleUpdating, setIsRoleUpdating] = useState(false);
 
-  // Moderator assignment states
-  const [genreAssignments, setGenreAssignments] = useState<ModeratorGenreAssignment[]>([]);
+  // Admin and moderator assignment states
+  const [adminGenreAssignments, setAdminGenreAssignments] = useState<AdminGenreAssignment[]>([]);
   const [adminAssignments, setAdminAssignments] = useState<ModeratorAdminAssignment[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<AdminMonthlyReport[]>([]);
-  const [assignModUsername, setAssignModUsername] = useState("");
+  const [assignAdminForGenre, setAssignAdminForGenre] = useState("");
   const [assignGenre, setAssignGenre] = useState("");
+  const [assignModUsername, setAssignModUsername] = useState("");
   const [assignAdminUsername, setAssignAdminUsername] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [banRecords, setBanRecords] = useState<BanRecord[]>([]);
-  const [myGenres, setMyGenres] = useState<string[]>([]);
   const [escalationNotes, setEscalationNotes] = useState("");
   const [reportBanReason, setReportBanReason] = useState("");
   const [reportSuspendReason, setReportSuspendReason] = useState("");
@@ -316,32 +316,24 @@ const AdminDashboard = () => {
       setReports(enrichedReports);
     }
 
-    // Fetch moderator genre assignments
-    const { data: genreAssignData } = await supabase
-      .from("moderator_genre_assignments")
+    // Fetch admin genre assignments
+    const { data: adminGenreData } = await supabase
+      .from("admin_genre_assignments")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (genreAssignData) {
-      const modIds = [...new Set(genreAssignData.map(g => g.moderator_user_id))];
-      const { data: modProfiles } = await supabase
+    if (adminGenreData) {
+      const adminIds = [...new Set(adminGenreData.map(g => g.admin_user_id))];
+      const { data: adminProfiles } = await supabase
         .from("profiles")
         .select("id, username")
-        .in("id", modIds);
-      const profileMap = new Map(modProfiles?.map(p => [p.id, p]) || []);
+        .in("id", adminIds);
+      const profileMap = new Map(adminProfiles?.map(p => [p.id, p]) || []);
       
-      setGenreAssignments(genreAssignData.map(g => ({
+      setAdminGenreAssignments(adminGenreData.map(g => ({
         ...g,
-        moderator: profileMap.get(g.moderator_user_id),
+        admin: profileMap.get(g.admin_user_id),
       })));
-
-      // Set current user's assigned genres for moderator filtering
-      if (user) {
-        const userGenres = genreAssignData
-          .filter(g => g.moderator_user_id === user.id)
-          .map(g => g.genre);
-        setMyGenres(userGenres);
-      }
     }
 
     // Fetch moderator-admin assignments (only for owner)
@@ -696,11 +688,27 @@ const AdminDashboard = () => {
     fetchData();
   };
 
-  // Get the admin assigned to current moderator
+  // Get the admin assigned to current moderator and their genre
   const getMyAdmin = () => {
     if (!user) return null;
     const assignment = adminAssignments.find(a => a.moderator_user_id === user.id);
-    return assignment ? { id: assignment.admin_user_id, username: assignment.admin?.username } : null;
+    if (!assignment) return null;
+    
+    // Find the genre this admin is assigned to
+    const adminGenre = adminGenreAssignments.find(g => g.admin_user_id === assignment.admin_user_id);
+    return { 
+      id: assignment.admin_user_id, 
+      username: assignment.admin?.username,
+      genre: adminGenre?.genre 
+    };
+  };
+
+  // Get the genres the current mod can access (through their admin)
+  const getMyModeratorGenres = () => {
+    if (!user) return [];
+    const myAdminInfo = getMyAdmin();
+    if (!myAdminInfo?.genre) return [];
+    return [myAdminInfo.genre];
   };
 
   const getUserIdByUsername = async (username: string) => {
@@ -789,32 +797,32 @@ const AdminDashboard = () => {
     }
   };
 
-  // Moderator assignment handlers
-  const handleAssignModToGenre = async () => {
-    if (!assignModUsername.trim() || !assignGenre) return;
+  // Admin genre assignment handlers
+  const handleAssignAdminToGenre = async () => {
+    if (!assignAdminForGenre.trim() || !assignGenre) return;
     setIsAssigning(true);
     try {
-      const modId = await getUserIdByUsername(assignModUsername);
-      if (!modId) {
+      const adminId = await getUserIdByUsername(assignAdminForGenre);
+      if (!adminId) {
         toast({ title: "User not found", variant: "destructive" });
         return;
       }
 
-      const { error } = await supabase.from("moderator_genre_assignments").insert({
-        moderator_user_id: modId,
+      const { error } = await supabase.from("admin_genre_assignments").insert({
+        admin_user_id: adminId,
         genre: assignGenre,
         assigned_by: user?.id,
       });
 
       if (error) {
         if (error.code === "23505") {
-          toast({ title: "Already assigned", description: "This mod is already assigned to this genre.", variant: "destructive" });
+          toast({ title: "Already assigned", description: "This admin is already assigned to this genre.", variant: "destructive" });
         } else {
           toast({ title: "Failed to assign", variant: "destructive" });
         }
       } else {
-        toast({ title: "Moderator assigned to genre" });
-        setAssignModUsername("");
+        toast({ title: "Admin assigned to genre" });
+        setAssignAdminForGenre("");
         setAssignGenre("");
         fetchData();
       }
@@ -823,9 +831,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleRemoveGenreAssignment = async (assignmentId: string) => {
+  const handleRemoveAdminGenreAssignment = async (assignmentId: string) => {
     const { error } = await supabase
-      .from("moderator_genre_assignments")
+      .from("admin_genre_assignments")
       .delete()
       .eq("id", assignmentId);
 
@@ -1418,8 +1426,13 @@ const AdminDashboard = () => {
                   <span className="font-medium text-green-400">Moderator View</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  You can see reports for your assigned genres: {myGenres.length > 0 ? myGenres.join(", ") : "None assigned yet"}.
-                  {getMyAdmin() && <> Your admin is <span className="text-primary">@{getMyAdmin()?.username}</span>.</>}
+                  {getMyAdmin() ? (
+                    <>
+                      You handle <span className="text-purple-400 font-medium">{getMyAdmin()?.genre || "unassigned"}</span> reports under admin <span className="text-primary font-medium">@{getMyAdmin()?.username}</span>.
+                    </>
+                  ) : (
+                    "You are not assigned to an admin yet. Contact the owner to get assigned."
+                  )}
                 </p>
               </div>
             )}
@@ -1440,9 +1453,10 @@ const AdminDashboard = () => {
                 </TableHeader>
                 <TableBody>
                   {(() => {
-                    // Filter reports based on role
+                    // Filter reports based on role - mods get genre through their admin
+                    const modGenres = getMyModeratorGenres();
                     const visibleReports = isModerator && !isAdmin && !isOwner
-                      ? reports.filter(r => r.genre && myGenres.includes(r.genre))
+                      ? reports.filter(r => r.genre && modGenres.includes(r.genre))
                       : reports;
 
                     return visibleReports.length === 0 ? (
@@ -1717,17 +1731,20 @@ const AdminDashboard = () => {
 
           {/* Assignments Tab */}
           <TabsContent value="assignments" className="space-y-6">
-            {/* Assign Mod to Genre */}
+            {/* Assign Admin to Genre */}
             <section className="glass rounded-xl p-4">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-500" />
-                Assign Moderator to Genre
+                <Shield className="w-5 h-5 text-purple-500" />
+                Assign Admin to Genre
               </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Each admin manages one genre. Mods assigned to that admin will handle reports for that genre.
+              </p>
               <div className="flex flex-col md:flex-row gap-3 mb-4">
                 <Input
-                  value={assignModUsername}
-                  onChange={(e) => setAssignModUsername(e.target.value)}
-                  placeholder="Moderator username"
+                  value={assignAdminForGenre}
+                  onChange={(e) => setAssignAdminForGenre(e.target.value)}
+                  placeholder="Admin username"
                   className="glass flex-1"
                 />
                 <select
@@ -1741,26 +1758,26 @@ const AdminDashboard = () => {
                   ))}
                 </select>
                 <Button
-                  onClick={handleAssignModToGenre}
-                  disabled={isAssigning || !assignModUsername.trim() || !assignGenre}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={handleAssignAdminToGenre}
+                  disabled={isAssigning || !assignAdminForGenre.trim() || !assignGenre}
+                  className="gap-2 bg-purple-600 hover:bg-purple-700"
                 >
                   {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Assign
                 </Button>
               </div>
 
-              {/* Current genre assignments */}
-              {genreAssignments.length > 0 && (
+              {/* Current admin genre assignments */}
+              {adminGenreAssignments.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Current Assignments</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Current Admin → Genre Assignments</h3>
                   <div className="flex flex-wrap gap-2">
-                    {genreAssignments.map((a) => (
-                      <div key={a.id} className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5">
-                        <span className="text-sm">@{a.moderator?.username || "Unknown"}</span>
-                        <span className="text-xs text-green-400">→ {a.genre}</span>
+                    {adminGenreAssignments.map((a) => (
+                      <div key={a.id} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-1.5">
+                        <span className="text-sm">@{a.admin?.username || "Unknown"}</span>
+                        <span className="text-xs text-purple-400">→ {a.genre}</span>
                         <button
-                          onClick={() => handleRemoveGenreAssignment(a.id)}
+                          onClick={() => handleRemoveAdminGenreAssignment(a.id)}
                           className="p-0.5 hover:bg-red-500/20 rounded"
                         >
                           <Trash2 className="w-3 h-3 text-red-400" />
