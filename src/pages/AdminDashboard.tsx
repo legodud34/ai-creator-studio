@@ -113,6 +113,17 @@ interface AdminMonthlyReport {
   admin?: { username: string };
 }
 
+interface BanRecord {
+  id: string;
+  user_id: string;
+  reason: string;
+  banned_at: string;
+  expires_at: string | null;
+  banned_by: string | null;
+  user?: { username: string };
+  banned_by_user?: { username: string };
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -140,6 +151,7 @@ const AdminDashboard = () => {
   const [assignGenre, setAssignGenre] = useState("");
   const [assignAdminUsername, setAssignAdminUsername] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [banRecords, setBanRecords] = useState<BanRecord[]>([]);
 
   const AVAILABLE_GENRES = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Romance", "Documentary", "Animation", "Music", "Gaming", "Other"];
 
@@ -323,6 +335,32 @@ const AdminDashboard = () => {
       setMonthlyReports(monthlyReportsData.map(r => ({
         ...r,
         admin: profileMap.get(r.admin_user_id),
+      })));
+    }
+
+    // Fetch all ban records with usernames
+    const { data: bansData } = await supabase
+      .from("banned_users")
+      .select("*")
+      .order("banned_at", { ascending: false });
+
+    if (bansData) {
+      const allUserIds = [...new Set([
+        ...bansData.map(b => b.user_id),
+        ...bansData.map(b => b.banned_by).filter(Boolean),
+      ])] as string[];
+      
+      const { data: banProfiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", allUserIds);
+      
+      const profileMap = new Map(banProfiles?.map(p => [p.id, p]) || []);
+      
+      setBanRecords(bansData.map(b => ({
+        ...b,
+        user: profileMap.get(b.user_id),
+        banned_by_user: b.banned_by ? profileMap.get(b.banned_by) : undefined,
       })));
     }
   };
@@ -1371,6 +1409,97 @@ const AdminDashboard = () => {
                       </div>
                     ))}
                   </div>
+                )}
+              </section>
+
+              {/* Detailed Bans & Suspensions List */}
+              <section className="glass rounded-xl p-4">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Ban className="w-5 h-5 text-red-500" />
+                  All Bans & Suspensions
+                </h2>
+                
+                {banRecords.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No bans or suspensions recorded yet.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Banned By</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {banRecords.map((ban) => {
+                        const now = new Date();
+                        const expiresAt = ban.expires_at ? new Date(ban.expires_at) : null;
+                        const isPermanent = !expiresAt;
+                        const isExpired = expiresAt && expiresAt <= now;
+                        const isActive = isPermanent || (expiresAt && expiresAt > now);
+                        
+                        // Calculate duration
+                        let duration = "Permanent";
+                        if (expiresAt) {
+                          const bannedAt = new Date(ban.banned_at);
+                          const diffMs = expiresAt.getTime() - bannedAt.getTime();
+                          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                          duration = `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+                          
+                          if (isActive && !isPermanent) {
+                            const remainingMs = expiresAt.getTime() - now.getTime();
+                            const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+                            duration += ` (${remainingDays}d left)`;
+                          }
+                        }
+                        
+                        return (
+                          <TableRow key={ban.id} className={isExpired ? "opacity-50" : ""}>
+                            <TableCell className="font-medium">
+                              @{ban.user?.username || "Unknown"}
+                            </TableCell>
+                            <TableCell>
+                              {isPermanent ? (
+                                <Badge variant="destructive" className="gap-1">
+                                  <Ban className="w-3 h-3" />
+                                  Ban
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-purple-400 border-purple-400/50 gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Suspension
+                                </Badge>
+                              )}
+                              {isExpired && (
+                                <Badge variant="outline" className="ml-1 text-muted-foreground">
+                                  Expired
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className={isPermanent ? "text-red-400 font-semibold" : ""}>
+                                {duration}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={ban.reason}>
+                              {ban.reason}
+                            </TableCell>
+                            <TableCell>
+                              @{ban.banned_by_user?.username || "System"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(ban.banned_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 )}
               </section>
             </TabsContent>
