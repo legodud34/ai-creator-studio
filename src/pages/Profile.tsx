@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Image, Video, Lock, Globe, Edit2, Check, X, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { FollowButton } from "@/components/FollowButton";
+import { LikeButton } from "@/components/LikeButton";
+import { CommentsSection } from "@/components/CommentsSection";
 
 interface ProfileData {
   id: string;
@@ -39,10 +41,23 @@ const Profile = () => {
   const [editBio, setEditBio] = useState("");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<ContentItem | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<ContentItem | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isOwnProfile = user && profileData && user.id === profileData.id;
+
+  const fetchFollowCounts = async (profileId: string) => {
+    const [{ count: followers }, { count: following }] = await Promise.all([
+      supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profileId),
+      supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profileId),
+    ]);
+    setFollowersCount(followers || 0);
+    setFollowingCount(following || 0);
+  };
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -68,8 +83,8 @@ const Profile = () => {
 
       setProfileData(profile);
       setEditBio(profile.bio || "");
+      fetchFollowCounts(profile.id);
 
-      // Fetch user's content
       const isOwner = user?.id === profile.id;
       
       const imageQuery = supabase
@@ -269,7 +284,15 @@ const Profile = () => {
             </div>
 
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-2xl font-bold">@{profileData.username}</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <h2 className="text-2xl font-bold">@{profileData.username}</h2>
+                {!isOwnProfile && (
+                  <FollowButton
+                    targetUserId={profileData.id}
+                    onFollowChange={() => fetchFollowCounts(profileData.id)}
+                  />
+                )}
+              </div>
               
               {isEditing ? (
                 <div className="mt-3 space-y-2">
@@ -325,6 +348,14 @@ const Profile = () => {
 
               <div className="flex justify-center sm:justify-start gap-6 mt-4 text-sm">
                 <div>
+                  <span className="font-bold text-foreground">{followersCount}</span>
+                  <span className="text-muted-foreground ml-1">followers</span>
+                </div>
+                <div>
+                  <span className="font-bold text-foreground">{followingCount}</span>
+                  <span className="text-muted-foreground ml-1">following</span>
+                </div>
+                <div>
                   <span className="font-bold text-foreground">{isOwnProfile ? images.length : publicImageCount}</span>
                   <span className="text-muted-foreground ml-1">images</span>
                 </div>
@@ -348,7 +379,12 @@ const Profile = () => {
               {images.map((img) => (
                 <div key={img.id} className="glass rounded-xl overflow-hidden group relative">
                   <div className="aspect-square relative">
-                    <img src={img.url} alt={img.prompt} className="w-full h-full object-cover" />
+                    <img
+                      src={img.url}
+                      alt={img.prompt}
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setSelectedImage(img)}
+                    />
                     {isOwnProfile && (
                       <button
                         onClick={() => toggleVisibility("image", img.id, img.is_public)}
@@ -363,8 +399,11 @@ const Profile = () => {
                       </button>
                     )}
                   </div>
-                  <div className="p-2">
+                  <div className="p-2 space-y-2">
                     <p className="text-xs text-foreground/70 line-clamp-1">{img.prompt}</p>
+                    <div className="flex items-center gap-3">
+                      <LikeButton imageId={img.id} />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -403,8 +442,17 @@ const Profile = () => {
                       </button>
                     )}
                   </div>
-                  <div className="p-3">
+                  <div className="p-3 space-y-3">
                     <p className="text-sm text-foreground/70 line-clamp-1">{vid.prompt}</p>
+                    <div className="flex items-center gap-3">
+                      <LikeButton videoId={vid.id} />
+                      <button
+                        onClick={() => setSelectedVideo(vid)}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        View comments
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -425,6 +473,76 @@ const Profile = () => {
           </div>
         )}
       </div>
+
+      {/* Image Detail Modal */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="glass rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="aspect-square relative">
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.prompt}
+                className="w-full h-full object-contain bg-muted"
+              />
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 max-h-[40vh] overflow-y-auto">
+              <p className="text-sm text-foreground/80">{selectedImage.prompt}</p>
+              <div className="flex items-center gap-3">
+                <LikeButton imageId={selectedImage.id} />
+              </div>
+              <CommentsSection imageId={selectedImage.id} isExpanded />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Detail Modal */}
+      {selectedVideo && (
+        <div
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedVideo(null)}
+        >
+          <div
+            className="glass rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="aspect-video relative">
+              <video
+                src={selectedVideo.url}
+                controls
+                playsInline
+                autoPlay
+                className="w-full h-full object-contain bg-muted"
+              />
+              <button
+                onClick={() => setSelectedVideo(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-background/80 hover:bg-background transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 max-h-[40vh] overflow-y-auto">
+              <p className="text-sm text-foreground/80">{selectedVideo.prompt}</p>
+              <div className="flex items-center gap-3">
+                <LikeButton videoId={selectedVideo.id} />
+              </div>
+              <CommentsSection videoId={selectedVideo.id} isExpanded />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
