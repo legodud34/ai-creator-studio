@@ -20,10 +20,10 @@ const VideoGenerator = () => {
     const value = parseInt(durationValue) || 5;
     const durationSeconds = durationUnit === "minutes" ? value * 60 : value;
     
-    if (durationSeconds < 5 || durationSeconds > 600) {
+    if (durationSeconds < 5 || durationSeconds > 5400) {
       toast({
         title: "Invalid duration",
-        description: "Duration must be between 5 seconds and 10 minutes.",
+        description: "Duration must be between 5 seconds and 90 minutes.",
         variant: "destructive",
       });
       return;
@@ -159,7 +159,7 @@ const VideoGenerator = () => {
               id="duration"
               type="number"
               min={durationUnit === "seconds" ? "5" : "1"}
-              max={durationUnit === "seconds" ? "600" : "10"}
+              max={durationUnit === "seconds" ? "5400" : "90"}
               value={durationValue}
               onChange={(e) => setDurationValue(e.target.value)}
               className="flex-1 bg-background/50 border-border/50"
@@ -204,7 +204,7 @@ const VideoGenerator = () => {
               </button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">5 sec - 10 min</p>
+          <p className="text-xs text-muted-foreground">5 sec - 90 min</p>
         </div>
 
         <Button
