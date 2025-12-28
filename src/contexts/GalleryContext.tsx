@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface GalleryImage {
   id: string;
   prompt: string;
+  title: string | null;
   url: string;
   is_public: boolean;
   created_at: string;
@@ -13,6 +14,7 @@ export interface GalleryImage {
 export interface GalleryVideo {
   id: string;
   prompt: string;
+  title: string | null;
   url: string;
   is_public: boolean;
   created_at: string;
@@ -30,6 +32,8 @@ interface GalleryContextType {
   deleteVideo: (id: string) => Promise<void>;
   toggleImageVisibility: (id: string) => Promise<void>;
   toggleVideoVisibility: (id: string) => Promise<void>;
+  updateImageTitle: (id: string, title: string) => Promise<void>;
+  updateVideoTitle: (id: string, title: string) => Promise<void>;
   refreshGallery: () => Promise<void>;
 }
 
@@ -176,6 +180,36 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateImageTitle = async (id: string, title: string) => {
+    const { error } = await supabase
+      .from("images")
+      .update({ title })
+      .eq("id", id);
+
+    if (!error) {
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === id ? { ...img, title } : img
+        )
+      );
+    }
+  };
+
+  const updateVideoTitle = async (id: string, title: string) => {
+    const { error } = await supabase
+      .from("videos")
+      .update({ title })
+      .eq("id", id);
+
+    if (!error) {
+      setVideos((prev) =>
+        prev.map((vid) =>
+          vid.id === id ? { ...vid, title } : vid
+        )
+      );
+    }
+  };
+
   return (
     <GalleryContext.Provider
       value={{
@@ -188,6 +222,8 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
         deleteVideo,
         toggleImageVisibility,
         toggleVideoVisibility,
+        updateImageTitle,
+        updateVideoTitle,
         refreshGallery,
       }}
     >
