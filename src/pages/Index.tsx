@@ -3,10 +3,9 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Mic, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, BarChart3 } from "lucide-react";
+import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, BarChart3 } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
-import VoiceChat from "@/components/VoiceChat";
 import TrendingSection from "@/components/TrendingSection";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 import SearchBar from "@/components/SearchBar";
@@ -124,9 +123,7 @@ const Index = () => {
             <h1 className={`text-5xl md:text-7xl font-bold py-2 px-4 transition-all duration-500 ${
               activeTab === "images" 
                 ? "text-afterglow" 
-                : activeTab === "videos" 
-                  ? "text-afterglow-accent" 
-                  : "text-afterglow-voice"
+                : "text-afterglow-accent"
             }`}>
               Afterglow AI
             </h1>
@@ -135,9 +132,7 @@ const Index = () => {
               <span className={`transition-all duration-500 ${
                 activeTab === "images" 
                   ? "text-gradient" 
-                  : activeTab === "videos" 
-                    ? "text-gradient-accent" 
-                    : "text-gradient-voice"
+                  : "text-gradient-accent"
               }`}>Build</span>{" "}
               <span className="text-foreground">the future</span>
               <br />
@@ -145,7 +140,7 @@ const Index = () => {
             </h1>
 
             <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto px-4">
-              Generate images, videos, and have creative voice conversations.
+              Generate stunning images and videos with AI.
             </p>
           </div>
         </header>
@@ -155,30 +150,20 @@ const Index = () => {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto h-12 md:h-14 p-1 glass">
+          <TabsList className="grid grid-cols-2 w-full max-w-sm mx-auto h-12 md:h-14 p-1 glass">
             <TabsTrigger
               value="images"
               className="h-full text-xs md:text-sm font-medium data-[state=active]:gradient-primary data-[state=active]:text-primary-foreground rounded-lg transition-all"
             >
               <Image className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Images</span>
-              <span className="sm:hidden">Img</span>
+              Images
             </TabsTrigger>
             <TabsTrigger
               value="videos"
               className="h-full text-xs md:text-sm font-medium data-[state=active]:gradient-accent data-[state=active]:text-accent-foreground rounded-lg transition-all"
             >
               <Video className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Videos</span>
-              <span className="sm:hidden">Vid</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="voice"
-              className="h-full text-xs md:text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-400 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_hsl(140,70%,50%/0.5)] rounded-lg transition-all"
-            >
-              <Mic className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Voice</span>
-              <span className="sm:hidden">Chat</span>
+              Videos
             </TabsTrigger>
           </TabsList>
 
@@ -188,10 +173,6 @@ const Index = () => {
 
           <TabsContent value="videos" className="mt-6 md:mt-8">
             <VideoGenerator />
-          </TabsContent>
-
-          <TabsContent value="voice" className="mt-6 md:mt-8">
-            <VoiceChat />
           </TabsContent>
         </Tabs>
 
