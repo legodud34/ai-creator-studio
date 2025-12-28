@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { LikeButton } from "@/components/LikeButton";
 import { CommentsSection } from "@/components/CommentsSection";
+import { GenreFilter, Genre } from "@/components/GenreFilter";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ interface VideoWithProfile {
   prompt: string;
   created_at: string;
   duration_seconds: number | null;
+  genre: string | null;
   profiles: {
     id: string;
     username: string;

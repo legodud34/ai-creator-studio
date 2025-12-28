@@ -1,18 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Video, Heart, MessageCircle, Play } from "lucide-react";
+import { ArrowLeft, Video, Grid, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { LikeButton } from "@/components/LikeButton";
-import { CommentsSection } from "@/components/CommentsSection";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ShortsPlayer } from "@/components/ShortsPlayer";
 
 interface VideoWithProfile {
   id: string;
@@ -33,7 +25,7 @@ const Shorts = () => {
   const { user } = useAuth();
   const [videos, setVideos] = useState<VideoWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedVideo, setSelectedVideo] = useState<VideoWithProfile | null>(null);
+  const [viewMode, setViewMode] = useState<"player" | "grid">("player");
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
@@ -65,6 +57,7 @@ const Shorts = () => {
   };
 
   const fetchEngagementCounts = async (videoIds: string[]) => {
+    if (videoIds.length === 0) return;
     const [likesResult, commentsResult] = await Promise.all([
       supabase.from("likes").select("video_id").in("video_id", videoIds),
       supabase.from("comments").select("video_id").in("video_id", videoIds),
@@ -84,13 +77,69 @@ const Shorts = () => {
     setCommentCounts(comments);
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Video className="w-12 h-12 mx-auto mb-4 opacity-50 animate-pulse text-white" />
+          <p className="text-white/70">Loading shorts...</p>
+        </div>
+      </div>
+    );
+  }
 
+  if (videos.length === 0) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Video className="w-12 h-12 mx-auto mb-4 opacity-50 text-white" />
+          <p className="text-white/70">No shorts available yet</p>
+          <p className="text-sm text-white/50 mt-2">Be the first to create one!</p>
+          <Link to="/" className="mt-4 inline-block">
+            <Button variant="outline" className="mt-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewMode === "player") {
+    return (
+      <>
+        {/* Back button overlay */}
+        <div className="fixed top-4 left-4 z-50">
+          <Link to="/">
+            <Button variant="ghost" size="icon" className="rounded-full bg-black/30 backdrop-blur text-white hover:bg-black/50">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+        </div>
+        
+        {/* View mode toggle */}
+        <div className="fixed top-4 right-4 z-50">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full bg-black/30 backdrop-blur text-white hover:bg-black/50"
+            onClick={() => setViewMode("grid")}
+          >
+            <Grid className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <ShortsPlayer 
+          videos={videos} 
+          likeCounts={likeCounts} 
+          commentCounts={commentCounts} 
+        />
+      </>
+    );
+  }
+
+  // Grid view
   return (
     <div className="min-h-screen gradient-surface">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -99,130 +148,56 @@ const Shorts = () => {
       </div>
 
       <div className="relative z-10 container max-w-6xl mx-auto px-4 py-6">
-        <header className="flex items-center gap-4 mb-8">
-          <Link to="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gradient-accent">Shorts</h1>
-            <p className="text-muted-foreground text-sm">Videos up to 5 minutes</p>
+        <header className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gradient-accent">Shorts</h1>
+              <p className="text-muted-foreground text-sm">Videos up to 5 minutes</p>
+            </div>
           </div>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="rounded-full"
+            onClick={() => setViewMode("player")}
+          >
+            <Layers className="w-5 h-5" />
+          </Button>
         </header>
 
-        {isLoading ? (
-          <div className="text-center py-12">
-            <Video className="w-12 h-12 mx-auto mb-4 opacity-50 animate-pulse" />
-            <p className="text-muted-foreground">Loading shorts...</p>
-          </div>
-        ) : videos.length === 0 ? (
-          <div className="text-center py-12">
-            <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-muted-foreground">No shorts available yet</p>
-            <p className="text-sm text-muted-foreground/70 mt-2">Be the first to create one!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {videos.map((video) => (
-              <div
-                key={video.id}
-                className="glass rounded-xl overflow-hidden cursor-pointer group hover:ring-2 hover:ring-accent/50 transition-all"
-                onClick={() => setSelectedVideo(video)}
-              >
-                <div className="relative aspect-[9/16] bg-muted">
-                  <video
-                    src={video.url}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    onMouseEnter={(e) => e.currentTarget.play()}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.pause();
-                      e.currentTarget.currentTime = 0;
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-white text-xs line-clamp-2">{video.prompt}</p>
-                  </div>
-                  {video.duration_seconds && (
-                    <span className="absolute top-2 right-2 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
-                      {formatDuration(video.duration_seconds)}
-                    </span>
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="w-12 h-12 text-white" />
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-6 h-6">
-                      <AvatarImage src={video.profiles.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {video.profiles.username.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm text-foreground/80 truncate">
-                      {video.profiles.username}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3 h-3" />
-                      {likeCounts[video.id] || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="w-3 h-3" />
-                      {commentCounts[video.id] || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {selectedVideo && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Link to={`/profile/${selectedVideo.profiles.username}`}>
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={selectedVideo.profiles.avatar_url || undefined} />
-                      <AvatarFallback>
-                        {selectedVideo.profiles.username.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                  <Link
-                    to={`/profile/${selectedVideo.profiles.username}`}
-                    className="hover:underline"
-                  >
-                    {selectedVideo.profiles.username}
-                  </Link>
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {videos.map((video, index) => (
+            <div
+              key={video.id}
+              className="glass rounded-xl overflow-hidden cursor-pointer group hover:ring-2 hover:ring-accent/50 transition-all"
+              onClick={() => setViewMode("player")}
+            >
+              <div className="relative aspect-[9/16] bg-muted">
                 <video
-                  src={selectedVideo.url}
-                  controls
-                  autoPlay
-                  className="w-full rounded-lg"
+                  src={video.url}
+                  className="w-full h-full object-cover"
+                  muted
+                  playsInline
+                  onMouseEnter={(e) => e.currentTarget.play()}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.pause();
+                    e.currentTarget.currentTime = 0;
+                  }}
                 />
-                <p className="text-foreground/80">{selectedVideo.prompt}</p>
-                <div className="flex items-center gap-4">
-                  <LikeButton videoId={selectedVideo.id} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-white text-xs line-clamp-2">{video.prompt}</p>
                 </div>
-                <CommentsSection videoId={selectedVideo.id} />
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

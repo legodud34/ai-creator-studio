@@ -17,6 +17,7 @@ export interface GalleryVideo {
   is_public: boolean;
   created_at: string;
   duration_seconds?: number | null;
+  genre?: string | null;
 }
 
 interface GalleryContextType {
@@ -24,7 +25,7 @@ interface GalleryContextType {
   videos: GalleryVideo[];
   isLoading: boolean;
   addImage: (url: string, prompt: string) => Promise<GalleryImage | null>;
-  addVideo: (url: string, prompt: string, durationSeconds?: number) => Promise<GalleryVideo | null>;
+  addVideo: (url: string, prompt: string, durationSeconds?: number, genre?: string | null) => Promise<GalleryVideo | null>;
   deleteImage: (id: string) => Promise<void>;
   deleteVideo: (id: string) => Promise<void>;
   toggleImageVisibility: (id: string) => Promise<void>;
@@ -98,7 +99,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     return data;
   };
 
-  const addVideo = async (url: string, prompt: string, durationSeconds?: number): Promise<GalleryVideo | null> => {
+  const addVideo = async (url: string, prompt: string, durationSeconds?: number, genre?: string | null): Promise<GalleryVideo | null> => {
     if (!user) return null;
 
     const { data, error } = await supabase
@@ -109,6 +110,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
         prompt,
         is_public: false,
         duration_seconds: durationSeconds || null,
+        genre: genre || null,
       })
       .select()
       .single();
