@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GalleryProvider } from "@/contexts/GalleryContext";
+import RequireAuth from "@/components/RequireAuth";
 import Index from "./pages/Index";
 import Gallery from "./pages/Gallery";
 import Auth from "./pages/Auth";
@@ -28,18 +29,22 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/gallery" element={<Gallery />} />
+            {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
-            <Route path="/profile/:username" element={<Profile />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/shorts" element={<Shorts />} />
-            <Route path="/short-videos" element={<ShortVideos />} />
-            <Route path="/long-videos" element={<LongVideos />} />
-            <Route path="/movies" element={<Movies />} />
-            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+            <Route path="/gallery" element={<RequireAuth><Gallery /></RequireAuth>} />
+            <Route path="/profile/:username" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/explore" element={<RequireAuth><Explore /></RequireAuth>} />
+            <Route path="/shorts" element={<RequireAuth><Shorts /></RequireAuth>} />
+            <Route path="/short-videos" element={<RequireAuth><ShortVideos /></RequireAuth>} />
+            <Route path="/long-videos" element={<RequireAuth><LongVideos /></RequireAuth>} />
+            <Route path="/movies" element={<RequireAuth><Movies /></RequireAuth>} />
+            <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
