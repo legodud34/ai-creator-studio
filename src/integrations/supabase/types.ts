@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_monthly_reports: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          report_month: number
+          report_year: number
+          reports_dismissed: number
+          reports_pending: number
+          reports_resolved: number
+          users_banned: number
+          users_suspended: number
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_month: number
+          report_year: number
+          reports_dismissed?: number
+          reports_pending?: number
+          reports_resolved?: number
+          users_banned?: number
+          users_suspended?: number
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_month?: number
+          report_year?: number
+          reports_dismissed?: number
+          reports_pending?: number
+          reports_resolved?: number
+          users_banned?: number
+          users_suspended?: number
+        }
+        Relationships: []
+      }
       banned_users: {
         Row: {
           banned_at: string
@@ -210,6 +252,54 @@ export type Database = {
           },
         ]
       }
+      moderator_admin_assignments: {
+        Row: {
+          admin_user_id: string
+          assigned_by: string
+          created_at: string
+          id: string
+          moderator_user_id: string
+        }
+        Insert: {
+          admin_user_id: string
+          assigned_by: string
+          created_at?: string
+          id?: string
+          moderator_user_id: string
+        }
+        Update: {
+          admin_user_id?: string
+          assigned_by?: string
+          created_at?: string
+          id?: string
+          moderator_user_id?: string
+        }
+        Relationships: []
+      }
+      moderator_genre_assignments: {
+        Row: {
+          assigned_by: string
+          created_at: string
+          genre: string
+          id: string
+          moderator_user_id: string
+        }
+        Insert: {
+          assigned_by: string
+          created_at?: string
+          genre: string
+          id?: string
+          moderator_user_id: string
+        }
+        Update: {
+          assigned_by?: string
+          created_at?: string
+          genre?: string
+          id?: string
+          moderator_user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string
@@ -279,6 +369,7 @@ export type Database = {
           content_type: string
           created_at: string
           description: string | null
+          genre: string | null
           id: string
           reason: string
           reported_user_id: string
@@ -292,6 +383,7 @@ export type Database = {
           content_type: string
           created_at?: string
           description?: string | null
+          genre?: string | null
           id?: string
           reason: string
           reported_user_id: string
@@ -305,6 +397,7 @@ export type Database = {
           content_type?: string
           created_at?: string
           description?: string | null
+          genre?: string | null
           id?: string
           reason?: string
           reported_user_id?: string

@@ -40,6 +40,10 @@ import {
   ShieldPlus,
   ShieldMinus,
   Clock,
+  Users,
+  FileText,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,8 +74,43 @@ interface Report {
   description: string | null;
   status: string;
   created_at: string;
+  genre?: string | null;
   reporter?: { username: string };
   reported_user?: { username: string };
+}
+
+interface ModeratorGenreAssignment {
+  id: string;
+  moderator_user_id: string;
+  genre: string;
+  assigned_by: string;
+  created_at: string;
+  moderator?: { username: string };
+}
+
+interface ModeratorAdminAssignment {
+  id: string;
+  moderator_user_id: string;
+  admin_user_id: string;
+  assigned_by: string;
+  created_at: string;
+  moderator?: { username: string };
+  admin?: { username: string };
+}
+
+interface AdminMonthlyReport {
+  id: string;
+  admin_user_id: string;
+  report_month: number;
+  report_year: number;
+  reports_resolved: number;
+  reports_dismissed: number;
+  reports_pending: number;
+  users_banned: number;
+  users_suspended: number;
+  notes: string | null;
+  created_at: string;
+  admin?: { username: string };
 }
 
 const AdminDashboard = () => {
@@ -92,6 +131,17 @@ const AdminDashboard = () => {
 
   const [roleUsername, setRoleUsername] = useState("");
   const [isRoleUpdating, setIsRoleUpdating] = useState(false);
+
+  // Moderator assignment states
+  const [genreAssignments, setGenreAssignments] = useState<ModeratorGenreAssignment[]>([]);
+  const [adminAssignments, setAdminAssignments] = useState<ModeratorAdminAssignment[]>([]);
+  const [monthlyReports, setMonthlyReports] = useState<AdminMonthlyReport[]>([]);
+  const [assignModUsername, setAssignModUsername] = useState("");
+  const [assignGenre, setAssignGenre] = useState("");
+  const [assignAdminUsername, setAssignAdminUsername] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  const AVAILABLE_GENRES = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Romance", "Documentary", "Animation", "Music", "Gaming", "Other"];
 
   useEffect(() => {
     const checkAdminAndFetchData = async () => {
@@ -209,6 +259,71 @@ const AdminDashboard = () => {
       }));
 
       setReports(enrichedReports);
+    }
+
+    // Fetch moderator genre assignments
+    const { data: genreAssignData } = await supabase
+      .from("moderator_genre_assignments")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (genreAssignData) {
+      const modIds = [...new Set(genreAssignData.map(g => g.moderator_user_id))];
+      const { data: modProfiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", modIds);
+      const profileMap = new Map(modProfiles?.map(p => [p.id, p]) || []);
+      
+      setGenreAssignments(genreAssignData.map(g => ({
+        ...g,
+        moderator: profileMap.get(g.moderator_user_id),
+      })));
+    }
+
+    // Fetch moderator-admin assignments (only for owner)
+    const { data: adminAssignData } = await supabase
+      .from("moderator_admin_assignments")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (adminAssignData) {
+      const allIds = [...new Set([
+        ...adminAssignData.map(a => a.moderator_user_id),
+        ...adminAssignData.map(a => a.admin_user_id),
+      ])];
+      const { data: assignProfiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", allIds);
+      const profileMap = new Map(assignProfiles?.map(p => [p.id, p]) || []);
+      
+      setAdminAssignments(adminAssignData.map(a => ({
+        ...a,
+        moderator: profileMap.get(a.moderator_user_id),
+        admin: profileMap.get(a.admin_user_id),
+      })));
+    }
+
+    // Fetch monthly reports (only for owner)
+    const { data: monthlyReportsData } = await supabase
+      .from("admin_monthly_reports")
+      .select("*")
+      .order("report_year", { ascending: false })
+      .order("report_month", { ascending: false });
+
+    if (monthlyReportsData) {
+      const adminIds = [...new Set(monthlyReportsData.map(r => r.admin_user_id))];
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", adminIds);
+      const profileMap = new Map(adminProfiles?.map(p => [p.id, p]) || []);
+      
+      setMonthlyReports(monthlyReportsData.map(r => ({
+        ...r,
+        admin: profileMap.get(r.admin_user_id),
+      })));
     }
   };
 
@@ -458,6 +573,107 @@ const AdminDashboard = () => {
     }
   };
 
+  // Moderator assignment handlers
+  const handleAssignModToGenre = async () => {
+    if (!assignModUsername.trim() || !assignGenre) return;
+    setIsAssigning(true);
+    try {
+      const modId = await getUserIdByUsername(assignModUsername);
+      if (!modId) {
+        toast({ title: "User not found", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from("moderator_genre_assignments").insert({
+        moderator_user_id: modId,
+        genre: assignGenre,
+        assigned_by: user?.id,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          toast({ title: "Already assigned", description: "This mod is already assigned to this genre.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to assign", variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Moderator assigned to genre" });
+        setAssignModUsername("");
+        setAssignGenre("");
+        fetchData();
+      }
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleRemoveGenreAssignment = async (assignmentId: string) => {
+    const { error } = await supabase
+      .from("moderator_genre_assignments")
+      .delete()
+      .eq("id", assignmentId);
+
+    if (error) {
+      toast({ title: "Failed to remove assignment", variant: "destructive" });
+    } else {
+      toast({ title: "Assignment removed" });
+      fetchData();
+    }
+  };
+
+  const handleAssignModToAdmin = async () => {
+    if (!assignModUsername.trim() || !assignAdminUsername.trim()) return;
+    setIsAssigning(true);
+    try {
+      const modId = await getUserIdByUsername(assignModUsername);
+      const adminId = await getUserIdByUsername(assignAdminUsername);
+      
+      if (!modId || !adminId) {
+        toast({ title: "User not found", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from("moderator_admin_assignments").insert({
+        moderator_user_id: modId,
+        admin_user_id: adminId,
+        assigned_by: user?.id,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          toast({ title: "Already assigned", description: "This mod is already assigned to this admin.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to assign", variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Moderator assigned to admin" });
+        setAssignModUsername("");
+        setAssignAdminUsername("");
+        fetchData();
+      }
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleRemoveAdminAssignment = async (assignmentId: string) => {
+    const { error } = await supabase
+      .from("moderator_admin_assignments")
+      .delete()
+      .eq("id", assignmentId);
+
+    if (error) {
+      toast({ title: "Failed to remove assignment", variant: "destructive" });
+    } else {
+      toast({ title: "Assignment removed" });
+      fetchData();
+    }
+  };
+
+  const getMonthName = (month: number) => {
+    return new Date(2000, month - 1).toLocaleString('default', { month: 'long' });
+  };
+
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -493,7 +709,7 @@ const AdminDashboard = () => {
         </header>
 
         <Tabs defaultValue={isModerator && !isAdmin && !isOwner ? "reports" : "users"} className="space-y-6">
-          <TabsList className="glass">
+          <TabsList className="glass flex-wrap">
             {(isOwner || isAdmin) && (
               <TabsTrigger value="users" className="gap-2">
                 <UserCheck className="w-4 h-4" />
@@ -509,6 +725,18 @@ const AdminDashboard = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            {(isOwner || isAdmin) && (
+              <TabsTrigger value="assignments" className="gap-2">
+                <Users className="w-4 h-4" />
+                Assignments
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger value="monthly-reports" className="gap-2">
+                <FileText className="w-4 h-4" />
+                Monthly Reports
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
@@ -968,6 +1196,185 @@ const AdminDashboard = () => {
               </Table>
             </div>
           </TabsContent>
+
+          {/* Assignments Tab */}
+          <TabsContent value="assignments" className="space-y-6">
+            {/* Assign Mod to Genre */}
+            <section className="glass rounded-xl p-4">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-green-500" />
+                Assign Moderator to Genre
+              </h2>
+              <div className="flex flex-col md:flex-row gap-3 mb-4">
+                <Input
+                  value={assignModUsername}
+                  onChange={(e) => setAssignModUsername(e.target.value)}
+                  placeholder="Moderator username"
+                  className="glass flex-1"
+                />
+                <select
+                  value={assignGenre}
+                  onChange={(e) => setAssignGenre(e.target.value)}
+                  className="glass rounded-md border border-border/50 bg-secondary/50 px-3 py-2 text-sm"
+                >
+                  <option value="">Select Genre</option>
+                  {AVAILABLE_GENRES.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                <Button
+                  onClick={handleAssignModToGenre}
+                  disabled={isAssigning || !assignModUsername.trim() || !assignGenre}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Assign
+                </Button>
+              </div>
+
+              {/* Current genre assignments */}
+              {genreAssignments.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Current Assignments</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {genreAssignments.map((a) => (
+                      <div key={a.id} className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5">
+                        <span className="text-sm">@{a.moderator?.username || "Unknown"}</span>
+                        <span className="text-xs text-green-400">→ {a.genre}</span>
+                        <button
+                          onClick={() => handleRemoveGenreAssignment(a.id)}
+                          className="p-0.5 hover:bg-red-500/20 rounded"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Assign Mod to Admin (Owner only) */}
+            {isOwner && (
+              <section className="glass rounded-xl p-4">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <ShieldPlus className="w-5 h-5 text-purple-500" />
+                  Assign Moderator to Admin (Reporting Hierarchy)
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Assign moderators to report to specific admins. Admins will oversee their assigned mods.
+                </p>
+                <div className="flex flex-col md:flex-row gap-3 mb-4">
+                  <Input
+                    value={assignModUsername}
+                    onChange={(e) => setAssignModUsername(e.target.value)}
+                    placeholder="Moderator username"
+                    className="glass flex-1"
+                  />
+                  <Input
+                    value={assignAdminUsername}
+                    onChange={(e) => setAssignAdminUsername(e.target.value)}
+                    placeholder="Admin username"
+                    className="glass flex-1"
+                  />
+                  <Button
+                    onClick={handleAssignModToAdmin}
+                    disabled={isAssigning || !assignModUsername.trim() || !assignAdminUsername.trim()}
+                    className="gap-2 bg-purple-600 hover:bg-purple-700"
+                  >
+                    {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Assign
+                  </Button>
+                </div>
+
+                {/* Current admin assignments */}
+                {adminAssignments.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground">Current Hierarchy</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {adminAssignments.map((a) => (
+                        <div key={a.id} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-1.5">
+                          <span className="text-sm">@{a.moderator?.username || "Unknown"}</span>
+                          <span className="text-xs text-purple-400">reports to</span>
+                          <span className="text-sm font-medium">@{a.admin?.username || "Unknown"}</span>
+                          <button
+                            onClick={() => handleRemoveAdminAssignment(a.id)}
+                            className="p-0.5 hover:bg-red-500/20 rounded"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </TabsContent>
+
+          {/* Monthly Reports Tab (Owner only) */}
+          {isOwner && (
+            <TabsContent value="monthly-reports" className="space-y-4">
+              <section className="glass rounded-xl p-4">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-amber-500" />
+                  Admin Monthly Reports
+                </h2>
+                
+                {monthlyReports.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No monthly reports submitted yet. Admins can submit their reports here.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {monthlyReports.map((report) => (
+                      <div key={report.id} className="border border-border/50 rounded-lg p-4 bg-secondary/20">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">@{report.admin?.username || "Unknown"}</span>
+                            <Badge variant="outline" className="text-amber-400 border-amber-400/50">
+                              {getMonthName(report.report_month)} {report.report_year}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            Submitted {new Date(report.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                          <div className="bg-green-500/10 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-green-400">{report.reports_resolved}</p>
+                            <p className="text-xs text-muted-foreground">Resolved</p>
+                          </div>
+                          <div className="bg-yellow-500/10 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-yellow-400">{report.reports_dismissed}</p>
+                            <p className="text-xs text-muted-foreground">Dismissed</p>
+                          </div>
+                          <div className="bg-orange-500/10 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-orange-400">{report.reports_pending}</p>
+                            <p className="text-xs text-muted-foreground">Pending</p>
+                          </div>
+                          <div className="bg-red-500/10 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-red-400">{report.users_banned}</p>
+                            <p className="text-xs text-muted-foreground">Banned</p>
+                          </div>
+                          <div className="bg-purple-500/10 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-purple-400">{report.users_suspended}</p>
+                            <p className="text-xs text-muted-foreground">Suspended</p>
+                          </div>
+                        </div>
+                        {report.notes && (
+                          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Notes:</p>
+                            <p className="text-sm">{report.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
