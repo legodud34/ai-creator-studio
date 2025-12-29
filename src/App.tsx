@@ -7,6 +7,7 @@ import { GalleryProvider } from "@/contexts/GalleryContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import CookieConsent from "@/components/CookieConsent";
 import RequireAuth from "@/components/RequireAuth";
+import AuthDebugOverlay from "@/components/AuthDebugOverlay";
 import Index from "./pages/Index";
 import Gallery from "./pages/Gallery";
 import Auth from "./pages/Auth";
@@ -34,13 +35,14 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <AuthDebugOverlay />
             <Routes>
               {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/contact" element={<Contact />} />
-              
+
               {/* Protected routes */}
               <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
               <Route path="/gallery" element={<RequireAuth><Gallery /></RequireAuth>} />
@@ -53,7 +55,7 @@ const App = () => (
               <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
               <Route path="/credit-shop" element={<RequireAuth><CreditShop /></RequireAuth>} />
               <Route path="/transactions" element={<RequireAuth><TransactionHistory /></RequireAuth>} />
-              
+
               <Route path="*" element={<NotFound />} />
             </Routes>
             <CookieConsent />

@@ -134,30 +134,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
 
+    const w = window as unknown as { __afterglowAuthDebug?: { events: Array<{ t: number; type: string; detail?: string }> } };
+    w.__afterglowAuthDebug = w.__afterglowAuthDebug ?? { events: [] };
+    const push = (type: string, detail?: string) => {
+      try {
+        w.__afterglowAuthDebug!.events.push({ t: Date.now(), type, detail });
+      } catch {
+        // ignore
+      }
+    };
+
+    push("auth_provider_mount");
+
     // Fail-safe: never keep the whole app in a loading state forever.
     const safetyTimer = window.setTimeout(() => {
-      if (isMounted) setIsLoading(false);
+      if (isMounted) {
+        push("auth_provider_safety_timeout");
+        setIsLoading(false);
+      }
     }, 8000);
 
     // IMPORTANT: keep this callback synchronous to avoid auth deadlocks.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
+      push("onAuthStateChange", event);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
     });
 
     // Then get the current session.
+    push("getSession_start");
     supabase.auth
       .getSession()
       .then(({ data: { session }, error }) => {
         if (!isMounted) return;
-        if (error) console.error("Session fetch error:", error);
+        if (error) {
+          push("getSession_error", error.message);
+        } else {
+          push("getSession_ok", session?.user?.id ?? "(no session)");
+        }
         setSession(session);
         setUser(session?.user ?? null);
       })
       .catch((e) => {
-        console.error("Session fetch threw:", e);
+        push("getSession_throw", e?.message ?? String(e));
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -165,6 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
     return () => {
+      push("auth_provider_unmount");
       isMounted = false;
       window.clearTimeout(safetyTimer);
       subscription.unsubscribe();
