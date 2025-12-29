@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +64,69 @@ const creditPacks: CreditPack[] = [
 const CreditShop = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [loadingPack, setLoadingPack] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+
+  // Fetch user's credit balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!user) {
+        setLoadingBalance(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("user_credits")
+          .select("credits")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        setCreditBalance(data?.credits ?? 0);
+      } catch (error) {
+        console.error("Error fetching credit balance:", error);
+        setCreditBalance(0);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+
+    fetchBalance();
+  }, [user]);
+
+  // Handle success/cancel from Stripe redirect
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const credits = searchParams.get("credits");
+    const canceled = searchParams.get("canceled");
+
+    if (success === "true" && credits) {
+      toast({
+        title: "Payment successful!",
+        description: `${credits} credits have been added to your account.`,
+      });
+      // Refresh balance
+      if (user) {
+        supabase
+          .from("user_credits")
+          .select("credits")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setCreditBalance(data.credits);
+          });
+      }
+    } else if (canceled === "true") {
+      toast({
+        title: "Payment canceled",
+        description: "Your payment was canceled. No credits were added.",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams, toast, user]);
 
   const handlePurchase = async (pack: CreditPack) => {
     if (!user) {
@@ -111,17 +173,36 @@ const CreditShop = () => {
       </div>
 
       <div className="relative z-10 container max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/">
-            <Button variant="ghost" size="icon" className="glass">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gradient">Credit Shop</h1>
-            <p className="text-muted-foreground mt-1">
-              Purchase credits to generate images and videos
-            </p>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="icon" className="glass">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gradient">Credit Shop</h1>
+              <p className="text-muted-foreground mt-1">
+                Purchase credits to generate images and videos
+              </p>
+            </div>
+          </div>
+          
+          {/* Credit Balance Card */}
+          <div className="glass rounded-xl p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
+              <Wallet className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Your Balance</p>
+              {loadingBalance ? (
+                <div className="h-7 w-16 bg-muted animate-pulse rounded" />
+              ) : (
+                <p className="text-2xl font-bold text-gradient">
+                  {creditBalance?.toLocaleString() ?? 0}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

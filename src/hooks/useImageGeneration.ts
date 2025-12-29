@@ -54,7 +54,7 @@ export const useImageGeneration = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-image", {
-        body: { prompt },
+        body: { prompt, userId: user.id },
       });
 
       if (error) {

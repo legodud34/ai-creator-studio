@@ -116,7 +116,7 @@ export const useVideoGeneration = () => {
       setProgress("Starting generation...");
       
       const { data, error } = await supabase.functions.invoke("generate-video", {
-        body: { prompt, aspectRatio, duration },
+        body: { prompt, aspectRatio, duration, userId: user.id },
       });
 
       if (error) throw new Error(error.message);
