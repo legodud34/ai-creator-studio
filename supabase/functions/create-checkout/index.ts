@@ -40,24 +40,12 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Check for existing Stripe customer
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId: string | undefined;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    }
-
     const origin = req.headers.get("origin") || "https://afterglow.lovable.app";
 
-    // Create checkout session
-    // Note: for one-time payments, Stripe does not allow `payment_method_collection`.
-    // We avoid attaching an existing customer to reduce use of previously saved payment methods.
+    // Create checkout session - guest mode only, no saved cards or Stripe Link
     const session = await stripe.checkout.sessions.create({
-      customer_creation: "always",
       customer_email: user.email,
-      saved_payment_method_options: {
-        payment_method_save: "disabled",
-      },
+      payment_method_types: ["card"], // Only card payment, disables Stripe Link
       line_items: [
         {
           price: priceId,
