@@ -8,6 +8,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+const CREDIT_SHOP_BALANCE_TIMEOUT_MS = 8000;
+
+const withTimeout = <T,>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> => {
+  let t: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    t = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    if (t) window.clearTimeout(t);
+  });
+};
+
+
 interface CreditPack {
   id: string;
   name: string;
@@ -71,6 +85,8 @@ const CreditShop = () => {
 
   // Fetch user's credit balance
   useEffect(() => {
+    let cancelled = false;
+
     const fetchBalance = async () => {
       if (!user) {
         setLoadingBalance(false);
@@ -78,23 +94,30 @@ const CreditShop = () => {
       }
 
       try {
-        const { data, error } = await supabase
+        const query = supabase
           .from("user_credits")
           .select("credits")
           .eq("user_id", user.id)
           .maybeSingle();
 
+        const { data, error } = await withTimeout(query, CREDIT_SHOP_BALANCE_TIMEOUT_MS, "Credit balance fetch");
+
+        if (cancelled) return;
         if (error) throw error;
         setCreditBalance(data?.credits ?? 0);
       } catch (error) {
-        console.error("Error fetching credit balance:", error);
-        setCreditBalance(0);
+        console.error("[CreditShop] Error fetching credit balance:", error);
+        if (!cancelled) setCreditBalance(0);
       } finally {
-        setLoadingBalance(false);
+        if (!cancelled) setLoadingBalance(false);
       }
     };
 
     fetchBalance();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // Handle success/cancel from Stripe redirect
