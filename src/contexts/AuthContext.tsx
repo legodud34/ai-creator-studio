@@ -226,7 +226,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore signout errors - session may already be invalid
+      console.log("Signout completed");
+    }
+    setUser(null);
+    setSession(null);
     setProfile(null);
     setBanStatus(null);
   };
