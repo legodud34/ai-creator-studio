@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, Coins } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import VideoGenerator from "@/components/VideoGenerator";
 import TrendingSection from "@/components/TrendingSection";
@@ -46,6 +46,12 @@ const Index = () => {
         <header className="mb-8 md:mb-12">
           <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
             <SearchBar />
+            <Link to="/credit-shop">
+              <Button variant="outline" size="sm" className="glass border-amber-500/50 text-amber-400 hover:border-amber-500 h-9">
+                <Coins className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Credits</span>
+              </Button>
+            </Link>
             <Link to="/explore">
               <Button variant="outline" size="sm" className="glass border-border/50 h-9">
                 <Compass className="w-4 h-4 mr-1" />
