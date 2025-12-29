@@ -42,10 +42,10 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://afterglow.lovable.app";
 
-    // Create checkout session - guest mode only, no saved cards or Stripe Link
+    // Create checkout session - pure guest mode, no Link, no saved info
+    // Not passing customer_email prevents Stripe Link from recognizing users
     const session = await stripe.checkout.sessions.create({
-      customer_email: user.email,
-      payment_method_types: ["card"], // Only card payment, disables Stripe Link
+      payment_method_types: ["card"],
       line_items: [
         {
           price: priceId,
