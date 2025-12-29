@@ -17,6 +17,7 @@ import ShortVideos from "./pages/ShortVideos";
 import LongVideos from "./pages/LongVideos";
 import Movies from "./pages/Movies";
 import AdminDashboard from "./pages/AdminDashboard";
+import CreditShop from "./pages/CreditShop";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/long-videos" element={<RequireAuth><LongVideos /></RequireAuth>} />
               <Route path="/movies" element={<RequireAuth><Movies /></RequireAuth>} />
               <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+              <Route path="/credit-shop" element={<RequireAuth><CreditShop /></RequireAuth>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
