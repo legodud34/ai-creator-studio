@@ -49,11 +49,15 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://afterglow.lovable.app";
 
-    // Create checkout session - always prompt for payment details
+    // Create checkout session
+    // Note: for one-time payments, Stripe does not allow `payment_method_collection`.
+    // We avoid attaching an existing customer to reduce use of previously saved payment methods.
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
-      payment_method_collection: "always",
+      customer_creation: "always",
+      customer_email: user.email,
+      saved_payment_method_options: {
+        payment_method_save: "disabled",
+      },
       line_items: [
         {
           price: priceId,
