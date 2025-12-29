@@ -209,7 +209,16 @@ const Gallery = () => {
                       <div className="aspect-video relative">
                         <video src={vid.url} controls playsInline className="w-full h-full object-contain bg-muted" />
                         <button
-                          onClick={() => toggleVideoVisibility(vid.id)}
+                          onClick={async () => {
+                            const result = await toggleVideoVisibility(vid.id);
+                            if (!result.success && result.error) {
+                              toast({
+                                title: "Cannot publish",
+                                description: result.error,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
                           className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background transition-colors z-10"
                           title={vid.is_public ? "Make private" : "Make public"}
                         >

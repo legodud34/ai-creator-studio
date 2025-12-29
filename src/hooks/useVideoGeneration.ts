@@ -75,6 +75,21 @@ export const useVideoGeneration = () => {
     throw new Error("Video generation timed out");
   }, [addVideo]);
 
+  const moderatePrompt = async (prompt: string): Promise<{ allowed: boolean; reason: string; category: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("moderate-content", {
+        body: { prompt, contentType: "video" },
+      });
+      if (error) {
+        console.error("Moderation error:", error);
+        return { allowed: true, reason: "", category: "" }; // Allow on error
+      }
+      return data;
+    } catch {
+      return { allowed: true, reason: "", category: "" }; // Allow on error
+    }
+  };
+
   const generateVideo = async (prompt: string, aspectRatio: string = "16:9", duration: number = 5) => {
     if (!prompt.trim()) {
       toast({
@@ -100,6 +115,18 @@ export const useVideoGeneration = () => {
       toast({
         title: "Rate limit reached",
         description: `You've used all your video generations. Try again in ${resetIn} seconds.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    // Moderate prompt before generation
+    setProgress("Checking content...");
+    const moderation = await moderatePrompt(prompt);
+    if (!moderation.allowed) {
+      toast({
+        title: "Content blocked",
+        description: moderation.reason || "This prompt contains inappropriate content.",
         variant: "destructive",
       });
       return null;
