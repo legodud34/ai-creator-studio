@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -15,8 +15,20 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // Force a re-render when the timeout should flip the UI.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const bootTs = getAuthBootTimestamp();
+    const remaining = Math.max(0, REQUIRE_AUTH_TIMEOUT_MS - (Date.now() - bootTs));
+    const t = window.setTimeout(() => setNow(Date.now()), remaining + 10);
+    return () => window.clearTimeout(t);
+  }, [isLoading]);
+
   const bootTs = getAuthBootTimestamp();
-  const deadlineReached = isLoading && Date.now() - bootTs > REQUIRE_AUTH_TIMEOUT_MS;
+  const deadlineReached = isLoading && now - bootTs > REQUIRE_AUTH_TIMEOUT_MS;
 
   if (isLoading && !deadlineReached) {
     return (
@@ -40,9 +52,9 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
             </header>
 
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button className="w-full" onClick={() => (window.location.href = "/auth")}
-                >Go to login</Button
-              >
+              <Button className="w-full" onClick={() => (window.location.href = "/auth")}> 
+                Go to login
+              </Button>
               <Button className="w-full" variant="outline" onClick={() => resetAuthSession()}>
                 Reset session
               </Button>
@@ -50,6 +62,10 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
 
             <p className="text-xs text-muted-foreground">
               Tip: add <span className="font-mono">?debugAuth=1</span> to the URL to see auth diagnostics.
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              Debug: <span className="font-mono">from={location.pathname}</span>
             </p>
           </section>
         </main>
