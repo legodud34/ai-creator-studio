@@ -148,7 +148,9 @@ const CreditShop = () => {
       if (error) throw error;
 
       if (data?.url) {
-        window.open(data.url, "_blank");
+        // Use location.href instead of window.open for Safari compatibility
+        // Safari blocks window.open in async callbacks
+        window.location.href = data.url;
       }
     } catch (error: any) {
       toast({
