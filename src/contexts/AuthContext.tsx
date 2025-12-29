@@ -134,73 +134,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
 
-    // Immediately try to get session - fail fast
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (!isMounted) return;
-      
-      if (error) {
-        console.error("Session fetch error:", error);
-        setIsLoading(false);
-        return;
-      }
+    // Fail-safe: never keep the whole app in a loading state forever.
+    const safetyTimer = window.setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 8000);
 
+    // IMPORTANT: keep this callback synchronous to avoid auth deadlocks.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        try {
-          const status = await checkBanStatus(session.user.id);
-          if (!isMounted) return;
-          
-          if (status && (status.isBanned || status.isSuspended)) {
-            await handleBannedUser(status);
-          } else {
-            setBanStatus(null);
-            await fetchProfile(session.user.id);
-          }
-        } catch (e) {
-          console.error("Session bootstrap error:", e);
-        }
-      }
-      
-      if (isMounted) setIsLoading(false);
+      setIsLoading(false);
     });
 
-    // Listen for future auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    // Then get the current session.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
         if (!isMounted) return;
-
+        if (error) console.error("Session fetch error:", error);
         setSession(session);
         setUser(session?.user ?? null);
-
-        if (session?.user) {
-          try {
-            const status = await checkBanStatus(session.user.id);
-            if (!isMounted) return;
-            
-            if (status && (status.isBanned || status.isSuspended)) {
-              await handleBannedUser(status);
-            } else {
-              setBanStatus(null);
-              await fetchProfile(session.user.id);
-            }
-          } catch (e) {
-            console.error("Auth state change error:", e);
-          }
-        } else {
-          setProfile(null);
-          setBanStatus(null);
-        }
-      }
-    );
+      })
+      .catch((e) => {
+        console.error("Session fetch threw:", e);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+        window.clearTimeout(safetyTimer);
+      });
 
     return () => {
       isMounted = false;
+      window.clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
 
+  // Fetch profile + ban state AFTER auth state is established.
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!user) {
+        setProfile(null);
+        setBanStatus(null);
+        return;
+      }
+
+      // Defer Supabase calls off the auth event tick.
+      setTimeout(async () => {
+        try {
+          const status = await checkBanStatus(user.id);
+          if (cancelled) return;
+
+          if (status && (status.isBanned || status.isSuspended)) {
+            await handleBannedUser(status);
+            return;
+          }
+
+          setBanStatus(null);
+          await fetchProfile(user.id);
+        } catch (e) {
+          console.error("Post-auth bootstrap error:", e);
+        }
+      }, 0);
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const signUp = async (email: string, password: string, username: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
