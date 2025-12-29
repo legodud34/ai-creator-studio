@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet } from "lucide-react";
+import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -280,7 +280,13 @@ const CreditShop = () => {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mt-12 text-center space-y-4">
+          <Link to="/transactions">
+            <Button variant="outline" className="glass">
+              <History className="w-4 h-4 mr-2" />
+              View Transaction History
+            </Button>
+          </Link>
           <p className="text-sm text-muted-foreground">
             Secure payments powered by Stripe. Credits never expire.
           </p>
