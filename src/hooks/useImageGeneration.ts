@@ -12,6 +12,12 @@ export interface GeneratedImage {
   createdAt: Date;
 }
 
+export interface GenerationResult {
+  success: boolean;
+  image?: GeneratedImage;
+  insufficientCredits?: boolean;
+}
+
 export const useImageGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const { images, addImage, deleteImage } = useGallery();
@@ -19,14 +25,14 @@ export const useImageGeneration = () => {
   const { toast } = useToast();
   const { checkRateLimit, recordAttempt } = useRateLimit("image", RATE_LIMITS.imageGeneration);
 
-  const generateImage = async (prompt: string) => {
+  const generateImage = async (prompt: string): Promise<GenerationResult> => {
     if (!prompt.trim()) {
       toast({
         title: "Empty prompt",
         description: "Please enter a description for your image.",
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     if (!user) {
@@ -35,7 +41,7 @@ export const useImageGeneration = () => {
         description: "Please sign in to generate images.",
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     // Check rate limit
@@ -46,7 +52,7 @@ export const useImageGeneration = () => {
         description: `You've used all your generations. Try again in ${resetIn} seconds.`,
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     setIsGenerating(true);
@@ -62,6 +68,16 @@ export const useImageGeneration = () => {
       }
 
       if (data.error) {
+        // Check for insufficient credits error
+        if (data.error.toLowerCase().includes("insufficient credits") || 
+            data.error.toLowerCase().includes("not enough credits")) {
+          toast({
+            title: "Insufficient credits",
+            description: "You need more credits to generate images.",
+            variant: "destructive",
+          });
+          return { success: false, insufficientCredits: true };
+        }
         throw new Error(data.error);
       }
 
@@ -74,22 +90,38 @@ export const useImageGeneration = () => {
         });
 
         return {
-          id: savedImage.id,
-          prompt,
-          imageUrl: data.imageUrl,
-          createdAt: new Date(savedImage.created_at),
+          success: true,
+          image: {
+            id: savedImage.id,
+            prompt,
+            imageUrl: data.imageUrl,
+            createdAt: new Date(savedImage.created_at),
+          },
         };
       }
 
-      return null;
+      return { success: false };
     } catch (error) {
       console.error("Error generating image:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate image";
+      
+      // Check for insufficient credits in error message
+      if (errorMessage.toLowerCase().includes("insufficient credits") ||
+          errorMessage.toLowerCase().includes("not enough credits")) {
+        toast({
+          title: "Insufficient credits",
+          description: "You need more credits to generate images.",
+          variant: "destructive",
+        });
+        return { success: false, insufficientCredits: true };
+      }
+      
       toast({
         title: "Generation failed",
-        description: error instanceof Error ? error.message : "Failed to generate image",
+        description: errorMessage,
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     } finally {
       setIsGenerating(false);
     }
