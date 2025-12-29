@@ -101,31 +101,56 @@ const CreditShop = () => {
   useEffect(() => {
     const success = searchParams.get("success");
     const credits = searchParams.get("credits");
+    const sessionId = searchParams.get("session_id");
     const canceled = searchParams.get("canceled");
 
-    if (success === "true" && credits) {
-      toast({
-        title: "Payment successful!",
-        description: `${credits} credits have been added to your account.`,
-      });
-      // Refresh balance
-      if (user) {
-        supabase
-          .from("user_credits")
-          .select("credits")
-          .eq("user_id", user.id)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (data) setCreditBalance(data.credits);
+    const verifyPayment = async () => {
+      if (success === "true" && sessionId && user) {
+        try {
+          // Call verify-payment to add credits (works even without webhook)
+          const { data, error } = await supabase.functions.invoke("verify-payment", {
+            body: { sessionId },
           });
+
+          if (error) throw error;
+
+          if (data?.success) {
+            const addedCredits = data.addedCredits || credits;
+            toast({
+              title: "Payment successful!",
+              description: data.alreadyProcessed 
+                ? "Your credits have already been added." 
+                : `${addedCredits} credits have been added to your account.`,
+            });
+            setCreditBalance(data.credits);
+          } else {
+            toast({
+              title: "Payment pending",
+              description: "Your payment is being processed. Credits will be added shortly.",
+            });
+          }
+        } catch (error) {
+          console.error("Payment verification error:", error);
+          // Still show success but note it may take time
+          toast({
+            title: "Payment received!",
+            description: `${credits} credits will be added to your account shortly.`,
+          });
+        }
+
+        // Clear URL params
+        window.history.replaceState({}, "", "/credit-shop");
+      } else if (canceled === "true") {
+        toast({
+          title: "Payment canceled",
+          description: "Your payment was canceled. No credits were added.",
+          variant: "destructive",
+        });
+        window.history.replaceState({}, "", "/credit-shop");
       }
-    } else if (canceled === "true") {
-      toast({
-        title: "Payment canceled",
-        description: "Your payment was canceled. No credits were added.",
-        variant: "destructive",
-      });
-    }
+    };
+
+    verifyPayment();
   }, [searchParams, toast, user]);
 
   const handlePurchase = async (pack: CreditPack) => {

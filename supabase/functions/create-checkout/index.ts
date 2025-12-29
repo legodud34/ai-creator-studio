@@ -55,7 +55,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${origin}/credit-shop?success=true&credits=${credits}`,
+      // Include session ID in success URL for verification
+      success_url: `${origin}/credit-shop?success=true&credits=${credits}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/credit-shop?canceled=true`,
       metadata: {
         user_id: user.id,
