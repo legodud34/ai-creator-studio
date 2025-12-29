@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2, Download, Trash2, Share2 } from "lucide-react";
@@ -14,6 +15,7 @@ const ImageGenerator = () => {
   const { isGenerating, images, generateImage, deleteImage } = useImageGeneration();
   const { toast } = useToast();
   const { savedWords, saveWord } = useSavedWords();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
     // Parse bracket definitions and save new words
@@ -31,8 +33,17 @@ const ImageGenerator = () => {
     // Expand any saved words in the prompt
     const expandedPrompt = expandSavedWords(cleanPrompt, savedWords);
     
-    await generateImage(expandedPrompt);
-    setPrompt("");
+    const result = await generateImage(expandedPrompt);
+    
+    // Redirect to credit shop if insufficient credits
+    if (result.insufficientCredits) {
+      navigate("/credit-shop");
+      return;
+    }
+    
+    if (result.success) {
+      setPrompt("");
+    }
   };
 
   const handleDownload = async (image: GalleryImage) => {

@@ -12,6 +12,12 @@ export interface GeneratedVideo {
   createdAt: Date;
 }
 
+export interface VideoGenerationResult {
+  success: boolean;
+  video?: GeneratedVideo;
+  insufficientCredits?: boolean;
+}
+
 export const useVideoGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState("");
@@ -90,14 +96,14 @@ export const useVideoGeneration = () => {
     }
   };
 
-  const generateVideo = async (prompt: string, aspectRatio: string = "16:9", duration: number = 5) => {
+  const generateVideo = async (prompt: string, aspectRatio: string = "16:9", duration: number = 5): Promise<VideoGenerationResult> => {
     if (!prompt.trim()) {
       toast({
         title: "Empty prompt",
         description: "Please enter a description for your video.",
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     if (!user) {
@@ -106,7 +112,7 @@ export const useVideoGeneration = () => {
         description: "Please sign in to generate videos.",
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     // Check rate limit
@@ -117,7 +123,7 @@ export const useVideoGeneration = () => {
         description: `You've used all your video generations. Try again in ${resetIn} seconds.`,
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     // Moderate prompt before generation
@@ -129,7 +135,7 @@ export const useVideoGeneration = () => {
         description: moderation.reason || "This prompt contains inappropriate content.",
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     }
 
     setIsGenerating(true);
@@ -147,7 +153,20 @@ export const useVideoGeneration = () => {
       });
 
       if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+      
+      if (data.error) {
+        // Check for insufficient credits error
+        if (data.error.toLowerCase().includes("insufficient credits") || 
+            data.error.toLowerCase().includes("not enough credits")) {
+          toast({
+            title: "Insufficient credits",
+            description: "You need more credits to generate videos.",
+            variant: "destructive",
+          });
+          return { success: false, insufficientCredits: true };
+        }
+        throw new Error(data.error);
+      }
 
       setProgress("Generating... This takes 1-2 min");
 
@@ -158,17 +177,30 @@ export const useVideoGeneration = () => {
           title: "Video generated!",
           description: detectedGenre ? `Genre: ${detectedGenre}` : "Your video is ready.",
         });
-        return newVideo;
+        return { success: true, video: newVideo };
       }
 
-      return null;
+      return { success: false };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate video";
+      
+      // Check for insufficient credits in error message
+      if (errorMessage.toLowerCase().includes("insufficient credits") ||
+          errorMessage.toLowerCase().includes("not enough credits")) {
+        toast({
+          title: "Insufficient credits",
+          description: "You need more credits to generate videos.",
+          variant: "destructive",
+        });
+        return { success: false, insufficientCredits: true };
+      }
+      
       toast({
         title: "Generation failed",
-        description: error instanceof Error ? error.message : "Failed to generate video",
+        description: errorMessage,
         variant: "destructive",
       });
-      return null;
+      return { success: false };
     } finally {
       setIsGenerating(false);
       setProgress("");

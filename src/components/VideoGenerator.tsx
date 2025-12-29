@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ const VideoGenerator = () => {
   const { isGenerating, progress, generateVideo, deleteVideo } = useVideoGeneration();
   const { toast } = useToast();
   const { savedWords, saveWord } = useSavedWords();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
     const value = parseInt(durationValue) || 5;
@@ -48,10 +50,17 @@ const VideoGenerator = () => {
     const expandedPrompt = expandSavedWords(cleanPrompt, savedWords);
     
     const result = await generateVideo(expandedPrompt, "16:9", durationSeconds);
-    if (result) {
-      setLatestVideo(result);
+    
+    // Redirect to credit shop if insufficient credits
+    if (result.insufficientCredits) {
+      navigate("/credit-shop");
+      return;
     }
-    setPrompt("");
+    
+    if (result.success && result.video) {
+      setLatestVideo(result.video);
+      setPrompt("");
+    }
   };
 
   const handleDownload = async () => {
