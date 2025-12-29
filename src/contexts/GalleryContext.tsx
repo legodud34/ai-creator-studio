@@ -31,7 +31,7 @@ interface GalleryContextType {
   deleteImage: (id: string) => Promise<void>;
   deleteVideo: (id: string) => Promise<void>;
   toggleImageVisibility: (id: string) => Promise<void>;
-  toggleVideoVisibility: (id: string) => Promise<void>;
+  toggleVideoVisibility: (id: string) => Promise<{ success: boolean; error?: string }>;
   updateImageTitle: (id: string, title: string) => Promise<void>;
   updateVideoTitle: (id: string, title: string) => Promise<void>;
   refreshGallery: () => Promise<void>;
@@ -162,9 +162,30 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const toggleVideoVisibility = async (id: string) => {
+  const toggleVideoVisibility = async (id: string): Promise<{ success: boolean; error?: string }> => {
     const video = videos.find((vid) => vid.id === id);
-    if (!video) return;
+    if (!video) return { success: false, error: "Video not found" };
+
+    // If making public, moderate the prompt first
+    if (!video.is_public) {
+      try {
+        const { data: moderation, error: modError } = await supabase.functions.invoke("moderate-content", {
+          body: { prompt: video.prompt, contentType: "video" },
+        });
+        
+        if (modError) {
+          console.error("Moderation error:", modError);
+        } else if (!moderation?.allowed) {
+          return { 
+            success: false, 
+            error: moderation?.reason || "This video contains content that cannot be published publicly." 
+          };
+        }
+      } catch (err) {
+        console.error("Moderation failed:", err);
+        // Continue on error - don't block if moderation fails
+      }
+    }
 
     const { error } = await supabase
       .from("videos")
@@ -177,7 +198,10 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
           vid.id === id ? { ...vid, is_public: !vid.is_public } : vid
         )
       );
+      return { success: true };
     }
+    
+    return { success: false, error: "Failed to update visibility" };
   };
 
   const updateImageTitle = async (id: string, title: string) => {
