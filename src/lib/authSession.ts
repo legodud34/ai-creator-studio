@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const AUTH_BOOT_TS_KEY = "afterglow_auth_boot_ts";
+let inMemoryBootTs: number | null = null;
 
 export const resetAuthSession = async () => {
   try {
@@ -27,10 +28,12 @@ export const resetAuthSession = async () => {
     // ignore
   }
 
+  inMemoryBootTs = null;
   window.location.href = "/auth";
 };
 
 export const getAuthBootTimestamp = () => {
+  // Primary: sessionStorage (persists across route changes)
   try {
     const existing = window.sessionStorage.getItem(AUTH_BOOT_TS_KEY);
     if (existing) return Number(existing) || Date.now();
@@ -39,7 +42,9 @@ export const getAuthBootTimestamp = () => {
     window.sessionStorage.setItem(AUTH_BOOT_TS_KEY, String(now));
     return now;
   } catch {
-    return Date.now();
+    // Fallback: in-memory (still stable within this page load)
+    if (inMemoryBootTs == null) inMemoryBootTs = Date.now();
+    return inMemoryBootTs;
   }
 };
 
@@ -49,4 +54,5 @@ export const clearAuthBootTimestamp = () => {
   } catch {
     // ignore
   }
+  inMemoryBootTs = null;
 };

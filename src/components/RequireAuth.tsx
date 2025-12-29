@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -15,20 +15,23 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // If sessionStorage is blocked, getAuthBootTimestamp() may fall back to in-memory.
+  // We still want a stable value for this component instance.
+  const bootTsRef = useRef<number>(getAuthBootTimestamp());
+
   // Force a re-render when the timeout should flip the UI.
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!isLoading) return;
 
-    const bootTs = getAuthBootTimestamp();
+    const bootTs = bootTsRef.current;
     const remaining = Math.max(0, REQUIRE_AUTH_TIMEOUT_MS - (Date.now() - bootTs));
-    const t = window.setTimeout(() => setNow(Date.now()), remaining + 10);
+    const t = window.setTimeout(() => setNow(Date.now()), remaining + 25);
     return () => window.clearTimeout(t);
   }, [isLoading]);
 
-  const bootTs = getAuthBootTimestamp();
-  const deadlineReached = isLoading && now - bootTs > REQUIRE_AUTH_TIMEOUT_MS;
+  const deadlineReached = isLoading && now - bootTsRef.current > REQUIRE_AUTH_TIMEOUT_MS;
 
   if (isLoading && !deadlineReached) {
     return (
@@ -52,7 +55,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
             </header>
 
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button className="w-full" onClick={() => (window.location.href = "/auth")}> 
+              <Button className="w-full" onClick={() => (window.location.href = "/auth")}>
                 Go to login
               </Button>
               <Button className="w-full" variant="outline" onClick={() => resetAuthSession()}>
