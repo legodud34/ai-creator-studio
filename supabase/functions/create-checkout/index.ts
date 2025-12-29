@@ -12,22 +12,41 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
       throw new Error("No authorization header");
     }
 
     const token = authHeader.replace("Bearer ", "");
+    
+    // Create client with the user's token for auth
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      }
+    );
+    
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
-    if (authError || !user?.email) {
-      throw new Error("User not authenticated or email not available");
+    console.log("Auth result:", { userId: user?.id, email: user?.email, error: authError?.message });
+    
+    if (authError) {
+      throw new Error(`Auth error: ${authError.message}`);
+    }
+    
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    if (!user.email) {
+      throw new Error("User email not available");
     }
 
     const { priceId, credits } = await req.json();
