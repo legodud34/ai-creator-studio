@@ -132,52 +132,76 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Safety: never leave the app stuck in a perpetual loading state.
+    const safetyTimer = window.setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 6000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Defer Supabase calls with setTimeout to prevent deadlock
+          // Defer calls to avoid potential lockups during auth transitions
           setTimeout(async () => {
-            // Check ban status first
-            const status = await checkBanStatus(session.user.id);
-            if (status && (status.isBanned || status.isSuspended)) {
-              await handleBannedUser(status);
-              return;
+            try {
+              const status = await checkBanStatus(session.user.id);
+              if (status && (status.isBanned || status.isSuspended)) {
+                await handleBannedUser(status);
+                return;
+              }
+              if (!isMounted) return;
+              setBanStatus(null);
+              await fetchProfile(session.user.id);
+            } catch (e) {
+              console.error("Auth post-login bootstrap error:", e);
             }
-            setBanStatus(null);
-            await fetchProfile(session.user.id);
           }, 0);
         } else {
           setProfile(null);
           setBanStatus(null);
         }
-        
+
         setIsLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Check ban status first
-        const status = await checkBanStatus(session.user.id);
-        if (status && (status.isBanned || status.isSuspended)) {
-          await handleBannedUser(status);
-          setIsLoading(false);
-          return;
-        }
-        setBanStatus(null);
-        await fetchProfile(session.user.id);
-      }
-      
-      setIsLoading(false);
-    });
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
 
-    return () => subscription.unsubscribe();
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const status = await checkBanStatus(session.user.id);
+          if (status && (status.isBanned || status.isSuspended)) {
+            await handleBannedUser(status);
+            return;
+          }
+          if (!isMounted) return;
+          setBanStatus(null);
+          await fetchProfile(session.user.id);
+        }
+      } catch (e) {
+        console.error("Initial session bootstrap error:", e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+        window.clearTimeout(safetyTimer);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, username: string) => {
