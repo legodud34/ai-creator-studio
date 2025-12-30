@@ -24,10 +24,18 @@ const withTimeout = <T,>(promise: PromiseLike<T>, ms: number, label: string): Pr
 // Detect in-app browsers (Atlas, Facebook, Instagram, etc.)
 const isInAppBrowser = (): boolean => {
   const ua = navigator.userAgent || navigator.vendor || "";
-  return /FBAN|FBAV|Instagram|Twitter|TikTok|Snapchat|Atlas|OpenAI/i.test(ua) ||
-    // Generic in-app browser detection
-    /\bwv\b/.test(ua) ||
-    (typeof window !== "undefined" && window.navigator && "standalone" in window.navigator);
+
+  // Common in-app browser identifiers
+  if (/FBAN|FBAV|Instagram|Twitter|TikTok|Snapchat|Atlas|OpenAI/i.test(ua)) return true;
+
+  // Android WebView typically includes "wv"
+  if (/\bwv\b/i.test(ua)) return true;
+
+  // NOTE: Safari exposes navigator.standalone even when false; check value, not presence.
+  const nav = navigator as unknown as { standalone?: boolean };
+  if (nav.standalone === true) return true;
+
+  return false;
 };
 
 interface CreditPack {
