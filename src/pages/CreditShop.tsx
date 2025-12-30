@@ -25,10 +25,6 @@ const withTimeout = <T,>(promise: PromiseLike<T>, ms: number, label: string): Pr
 const isInAppBrowser = (): boolean => {
   const ua = navigator.userAgent || navigator.vendor || "";
 
-  // Safari on macOS/iOS should never be treated as in-app browser
-  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-  if (isSafari) return false;
-
   // Common in-app browser identifiers
   if (/FBAN|FBAV|Instagram|Twitter|TikTok|Snapchat|Atlas|OpenAI/i.test(ua)) return true;
 
@@ -36,6 +32,15 @@ const isInAppBrowser = (): boolean => {
   if (/\bwv\b/i.test(ua)) return true;
 
   return false;
+};
+
+// Detect if running inside an iframe (Lovable preview, etc.)
+const isInIframe = (): boolean => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true; // Cross-origin iframe
+  }
 };
 
 interface CreditPack {
@@ -206,43 +211,48 @@ const CreditShop = () => {
       return;
     }
 
-    // Ensure we have a valid auth session (otherwise the backend function call will fail)
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      toast({
-        title: "Session expired",
-        description: "Please sign in again to purchase credits.",
-        variant: "destructive",
-      });
-      return;
+    // Detect restricted contexts: in-app browser OR iframe (Lovable preview)
+    const inIframe = isInIframe();
+    const restrictedContext = inAppBrowser || inIframe;
+    
+    // CRITICAL: Open popup FIRST (synchronously) in restricted contexts
+    // Safari blocks popups opened after async calls
+    let popup: Window | null = null;
+    if (restrictedContext) {
+      popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     }
+    
+    console.log('[CreditShop] Browser detection:', {
+      userAgent: navigator.userAgent,
+      isInAppBrowser: inAppBrowser,
+      isInIframe: inIframe,
+      restrictedContext,
+      popupOpened: !!popup,
+      checkoutMethod: restrictedContext ? (popup ? 'popup-early' : 'fallback') : 'redirect'
+    });
 
     // Clear any previous checkout URL
     setCheckoutUrl(null);
     setCheckoutPackName(null);
     setLoadingPack(pack.id);
 
-    // Only use popup approach for in-app browsers (Atlas, etc.)
-    // For normal browsers like Safari/Chrome, use standard redirect
-    const usePopupApproach = inAppBrowser;
-    
-    console.log('[CreditShop] Browser detection:', {
-      userAgent: navigator.userAgent,
-      isInAppBrowser: inAppBrowser,
-      checkoutMethod: usePopupApproach ? 'popup' : 'redirect'
-    });
-    
-    let popup: Window | null = null;
-
-    if (usePopupApproach) {
-      // Open popup synchronously (user gesture) for in-app browser compatibility
-      popup = window.open("about:blank", "_blank", "noopener");
-    }
-
     try {
+      // Now do the async work (session check + create-checkout)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        if (popup && !popup.closed) popup.close();
+        toast({
+          title: "Session expired",
+          description: "Please sign in again to purchase credits.",
+          variant: "destructive",
+        });
+        setLoadingPack(null);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { priceId: pack.priceId, credits: pack.credits },
       });
@@ -250,15 +260,15 @@ const CreditShop = () => {
       if (error) throw error;
 
       if (data?.url) {
-        if (usePopupApproach && popup && !popup.closed) {
-          // In-app browser: navigate the pre-opened popup
+        if (restrictedContext && popup && !popup.closed) {
+          // Restricted context with working popup: navigate it to Stripe
           popup.location.href = data.url;
           toast({
             title: "Checkout opened",
             description: "Complete your purchase in the new tab.",
           });
-        } else if (usePopupApproach) {
-          // In-app browser but popup was blocked - show fallback button
+        } else if (restrictedContext) {
+          // Restricted context but popup was blocked: show fallback UI
           setCheckoutUrl(data.url);
           setCheckoutPackName(pack.name);
           toast({
@@ -266,8 +276,8 @@ const CreditShop = () => {
             description: "Click the button below to open the payment page.",
           });
         } else {
-          // Normal browser (Safari, Chrome, etc.): redirect directly
-          window.location.href = data.url;
+          // Normal browser context: direct redirect
+          window.location.assign(data.url);
         }
       }
     } catch (error: any) {
@@ -380,14 +390,16 @@ const CreditShop = () => {
           </div>
         )}
 
-        {/* In-app Browser Warning */}
-        {inAppBrowser && (
+        {/* Preview/In-app Browser Notice */}
+        {(inAppBrowser || isInIframe()) && (
           <div className="glass rounded-xl p-4 mb-8 border border-amber-500/30 bg-amber-500/5">
             <div className="flex items-center gap-3 text-sm">
               <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
               <span className="text-muted-foreground">
-                <strong className="text-foreground">In-app browser detected.</strong>{" "}
-                If payment doesn't open, use the "Open Stripe Checkout" button or open this page in Chrome/Safari.
+                <strong className="text-foreground">
+                  {inAppBrowser ? "In-app browser detected." : "Preview mode detected."}
+                </strong>{" "}
+                Checkout will open in a new tab. If it doesn't open, use the fallback button.
               </span>
             </div>
           </div>
