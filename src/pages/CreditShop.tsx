@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet, History } from "lucide-react";
+import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet, History, ExternalLink, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,14 @@ const withTimeout = <T,>(promise: PromiseLike<T>, ms: number, label: string): Pr
   });
 };
 
+// Detect in-app browsers (Atlas, Facebook, Instagram, etc.)
+const isInAppBrowser = (): boolean => {
+  const ua = navigator.userAgent || navigator.vendor || "";
+  return /FBAN|FBAV|Instagram|Twitter|TikTok|Snapchat|Atlas|OpenAI/i.test(ua) ||
+    // Generic in-app browser detection
+    /\bwv\b/.test(ua) ||
+    (typeof window !== "undefined" && window.navigator && "standalone" in window.navigator);
+};
 
 interface CreditPack {
   id: string;
@@ -82,6 +90,10 @@ const CreditShop = () => {
   const [loadingPack, setLoadingPack] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(true);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [checkoutPackName, setCheckoutPackName] = useState<string | null>(null);
+
+  const inAppBrowser = isInAppBrowser();
 
   // Fetch user's credit balance
   useEffect(() => {
@@ -186,7 +198,13 @@ const CreditShop = () => {
       return;
     }
 
+    // Clear any previous checkout URL
+    setCheckoutUrl(null);
+    setCheckoutPackName(null);
     setLoadingPack(pack.id);
+
+    // Open popup synchronously (user gesture) for better browser compatibility
+    const popup = window.open("about:blank", "_blank", "noopener");
 
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -196,11 +214,28 @@ const CreditShop = () => {
       if (error) throw error;
 
       if (data?.url) {
-        // Use location.href instead of window.open for Safari compatibility
-        // Safari blocks window.open in async callbacks
-        window.location.href = data.url;
+        // Try to navigate the popup we opened
+        if (popup && !popup.closed) {
+          popup.location.href = data.url;
+          toast({
+            title: "Checkout opened",
+            description: "Complete your purchase in the new tab.",
+          });
+        } else {
+          // Popup was blocked or closed - show fallback button
+          setCheckoutUrl(data.url);
+          setCheckoutPackName(pack.name);
+          toast({
+            title: "Checkout ready",
+            description: "Click the button below to open the payment page.",
+          });
+        }
       }
     } catch (error: any) {
+      // Close the blank popup if it was opened
+      if (popup && !popup.closed) {
+        popup.close();
+      }
       toast({
         title: "Purchase failed",
         description: error.message || "Failed to create checkout session.",
@@ -209,6 +244,17 @@ const CreditShop = () => {
     } finally {
       setLoadingPack(null);
     }
+  };
+
+  const handleOpenCheckout = () => {
+    if (checkoutUrl) {
+      window.open(checkoutUrl, "_blank", "noopener");
+    }
+  };
+
+  const handleClearCheckout = () => {
+    setCheckoutUrl(null);
+    setCheckoutPackName(null);
   };
 
   const calculatePerCredit = (price: number, credits: number) => {
@@ -268,6 +314,45 @@ const CreditShop = () => {
             </span>
           </div>
         </div>
+
+        {/* Checkout Fallback UI */}
+        {checkoutUrl && (
+          <div className="glass rounded-xl p-6 mb-8 border border-primary/50">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shrink-0">
+                <ExternalLink className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-1">Checkout Ready</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Your {checkoutPackName} checkout is ready. Click below to open the payment page.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={handleOpenCheckout} className="gradient-primary">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open Stripe Checkout
+                  </Button>
+                  <Button variant="ghost" onClick={handleClearCheckout}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* In-app Browser Warning */}
+        {inAppBrowser && (
+          <div className="glass rounded-xl p-4 mb-8 border border-amber-500/30 bg-amber-500/5">
+            <div className="flex items-center gap-3 text-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">In-app browser detected.</strong>{" "}
+                If payment doesn't open, use the "Open Stripe Checkout" button or open this page in Chrome/Safari.
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {creditPacks.map((pack) => (
