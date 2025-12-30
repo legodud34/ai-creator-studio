@@ -206,6 +206,20 @@ const CreditShop = () => {
       return;
     }
 
+    // Ensure we have a valid auth session (otherwise the backend function call will fail)
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      toast({
+        title: "Session expired",
+        description: "Please sign in again to purchase credits.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Clear any previous checkout URL
     setCheckoutUrl(null);
     setCheckoutPackName(null);
@@ -215,7 +229,7 @@ const CreditShop = () => {
     // For normal browsers like Safari/Chrome, use standard redirect
     const usePopupApproach = inAppBrowser;
     let popup: Window | null = null;
-    
+
     if (usePopupApproach) {
       // Open popup synchronously (user gesture) for in-app browser compatibility
       popup = window.open("about:blank", "_blank", "noopener");
