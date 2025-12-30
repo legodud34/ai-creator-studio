@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const CREDITS_PER_VIDEO = 10;
+const CREDITS_PER_VIDEO = 25;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -69,7 +69,7 @@ serve(async (req) => {
 
     if (newBalance === -1) {
       return new Response(
-        JSON.stringify({ error: "Insufficient credits. You need 10 credits for video generation." }),
+        JSON.stringify({ error: "Insufficient credits. You need 25 credits for video generation." }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
