@@ -264,7 +264,7 @@ const CreditShop = () => {
             </span>
             <span className="mx-2">•</span>
             <span>
-              <strong className="text-foreground">10 credits</strong> = 1 video generation
+              <strong className="text-foreground">25 credits</strong> = 1 video generation
             </span>
           </div>
         </div>
