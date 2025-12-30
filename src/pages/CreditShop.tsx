@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet, History, ExternalLink, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Sparkles, Zap, Crown, Rocket, Loader2, Wallet, History, ExternalLink, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -105,6 +105,7 @@ const CreditShop = () => {
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [checkoutPackName, setCheckoutPackName] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const inAppBrowser = isInAppBrowser();
 
@@ -303,13 +304,27 @@ const CreditShop = () => {
 
   const handleOpenCheckout = () => {
     if (checkoutUrl) {
-      window.open(checkoutUrl, "_blank", "noopener");
+      window.open(checkoutUrl, "_blank");
+    }
+  };
+
+  const handleCopyCheckoutLink = async () => {
+    if (checkoutUrl) {
+      try {
+        await navigator.clipboard.writeText(checkoutUrl);
+        setCopied(true);
+        toast({ title: "Link copied!", description: "Paste it in a new browser tab to complete checkout." });
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        toast({ title: "Copy failed", description: "Please manually copy the link.", variant: "destructive" });
+      }
     }
   };
 
   const handleClearCheckout = () => {
     setCheckoutUrl(null);
     setCheckoutPackName(null);
+    setCopied(false);
   };
 
   const calculatePerCredit = (price: number, credits: number) => {
@@ -370,7 +385,7 @@ const CreditShop = () => {
           </div>
         </div>
 
-        {/* Checkout Fallback UI */}
+        {/* Checkout Fallback UI - shown when popup was blocked */}
         {checkoutUrl && (
           <div className="glass rounded-xl p-6 mb-8 border border-primary/50">
             <div className="flex items-start gap-4">
@@ -380,33 +395,22 @@ const CreditShop = () => {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold mb-1">Checkout Ready</h3>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Your {checkoutPackName} checkout is ready. Click below to open the payment page.
+                  Your {checkoutPackName} checkout is ready. Click below to open the payment page, or copy the link.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button onClick={handleOpenCheckout} className="gradient-primary">
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Open Stripe Checkout
+                    Open Checkout
+                  </Button>
+                  <Button variant="outline" onClick={handleCopyCheckoutLink}>
+                    {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                    {copied ? "Copied!" : "Copy Link"}
                   </Button>
                   <Button variant="ghost" onClick={handleClearCheckout}>
                     Cancel
                   </Button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Preview/In-app Browser Notice */}
-        {(inAppBrowser || isInIframe()) && (
-          <div className="glass rounded-xl p-4 mb-8 border border-amber-500/30 bg-amber-500/5">
-            <div className="flex items-center gap-3 text-sm">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-              <span className="text-muted-foreground">
-                <strong className="text-foreground">
-                  {inAppBrowser ? "In-app browser detected." : "Preview mode detected."}
-                </strong>{" "}
-                Checkout will open in a new tab. If it doesn't open, use the fallback button.
-              </span>
             </div>
           </div>
         )}
