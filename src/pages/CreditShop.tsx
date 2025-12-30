@@ -203,8 +203,15 @@ const CreditShop = () => {
     setCheckoutPackName(null);
     setLoadingPack(pack.id);
 
-    // Open popup synchronously (user gesture) for better browser compatibility
-    const popup = window.open("about:blank", "_blank", "noopener");
+    // Only use popup approach for in-app browsers (Atlas, etc.)
+    // For normal browsers like Safari/Chrome, use standard redirect
+    const usePopupApproach = inAppBrowser;
+    let popup: Window | null = null;
+    
+    if (usePopupApproach) {
+      // Open popup synchronously (user gesture) for in-app browser compatibility
+      popup = window.open("about:blank", "_blank", "noopener");
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -214,21 +221,24 @@ const CreditShop = () => {
       if (error) throw error;
 
       if (data?.url) {
-        // Try to navigate the popup we opened
-        if (popup && !popup.closed) {
+        if (usePopupApproach && popup && !popup.closed) {
+          // In-app browser: navigate the pre-opened popup
           popup.location.href = data.url;
           toast({
             title: "Checkout opened",
             description: "Complete your purchase in the new tab.",
           });
-        } else {
-          // Popup was blocked or closed - show fallback button
+        } else if (usePopupApproach) {
+          // In-app browser but popup was blocked - show fallback button
           setCheckoutUrl(data.url);
           setCheckoutPackName(pack.name);
           toast({
             title: "Checkout ready",
             description: "Click the button below to open the payment page.",
           });
+        } else {
+          // Normal browser (Safari, Chrome, etc.): redirect directly
+          window.location.href = data.url;
         }
       }
     } catch (error: any) {
