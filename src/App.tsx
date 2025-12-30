@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GalleryProvider } from "@/contexts/GalleryContext";
-import ErrorBoundaryWithRouter from "@/components/ErrorBoundaryWithRouter";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import CookieConsent from "@/components/CookieConsent";
 import RequireAuth from "@/components/RequireAuth";
 import AuthDebugOverlay from "@/components/AuthDebugOverlay";
@@ -28,7 +28,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <ErrorBoundaryWithRouter>
+  <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <GalleryProvider>
@@ -63,7 +63,7 @@ const App = () => (
         </GalleryProvider>
       </AuthProvider>
     </QueryClientProvider>
-  </ErrorBoundaryWithRouter>
+  </ErrorBoundary>
 );
 
 export default App;

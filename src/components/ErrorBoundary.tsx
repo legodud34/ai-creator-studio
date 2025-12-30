@@ -4,7 +4,6 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface Props {
   children: ReactNode;
-  navigate?: (to: string) => void;
 }
 
 interface State {
@@ -31,10 +30,6 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleGoHome = () => {
-    if (this.props.navigate) {
-      this.props.navigate("/");
-      return;
-    }
     window.location.href = "/";
   };
 
