@@ -25,15 +25,15 @@ const withTimeout = <T,>(promise: PromiseLike<T>, ms: number, label: string): Pr
 const isInAppBrowser = (): boolean => {
   const ua = navigator.userAgent || navigator.vendor || "";
 
+  // Safari on macOS/iOS should never be treated as in-app browser
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  if (isSafari) return false;
+
   // Common in-app browser identifiers
   if (/FBAN|FBAV|Instagram|Twitter|TikTok|Snapchat|Atlas|OpenAI/i.test(ua)) return true;
 
   // Android WebView typically includes "wv"
   if (/\bwv\b/i.test(ua)) return true;
-
-  // NOTE: Safari exposes navigator.standalone even when false; check value, not presence.
-  const nav = navigator as unknown as { standalone?: boolean };
-  if (nav.standalone === true) return true;
 
   return false;
 };
@@ -228,6 +228,13 @@ const CreditShop = () => {
     // Only use popup approach for in-app browsers (Atlas, etc.)
     // For normal browsers like Safari/Chrome, use standard redirect
     const usePopupApproach = inAppBrowser;
+    
+    console.log('[CreditShop] Browser detection:', {
+      userAgent: navigator.userAgent,
+      isInAppBrowser: inAppBrowser,
+      checkoutMethod: usePopupApproach ? 'popup' : 'redirect'
+    });
+    
     let popup: Window | null = null;
 
     if (usePopupApproach) {
