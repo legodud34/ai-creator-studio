@@ -216,10 +216,16 @@ const CreditShop = () => {
     const restrictedContext = inAppBrowser || inIframe;
     
     // CRITICAL: Open popup FIRST (synchronously) in restricted contexts
-    // Safari blocks popups opened after async calls
+    // Safari (especially in iframes) may return `null` if we pass noopener/noreferrer.
+    // We intentionally avoid those flags here so we can navigate the opened tab.
     let popup: Window | null = null;
     if (restrictedContext) {
-      popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+      popup = window.open("", "_blank");
+      try {
+        popup?.document.write("<title>Redirecting…</title><p style='font-family:system-ui;padding:16px'>Redirecting to secure checkout…</p>");
+      } catch {
+        // ignore
+      }
     }
     
     console.log('[CreditShop] Browser detection:', {
