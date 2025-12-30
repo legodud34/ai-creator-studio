@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface Props {
   children: ReactNode;
+  navigate?: (to: string) => void;
 }
 
 interface State {
@@ -30,6 +31,10 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleGoHome = () => {
+    if (this.props.navigate) {
+      this.props.navigate("/");
+      return;
+    }
     window.location.href = "/";
   };
 
@@ -48,27 +53,18 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-foreground">
-                Something went wrong
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
               <p className="text-muted-foreground">
                 We encountered an unexpected error. Please try refreshing the page or go back to the home page.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                onClick={this.handleReload}
-                className="gradient-primary text-primary-foreground"
-              >
+              <Button onClick={this.handleReload} className="gradient-primary text-primary-foreground">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh Page
               </Button>
-              <Button
-                onClick={this.handleGoHome}
-                variant="outline"
-                className="glass border-border/50"
-              >
+              <Button onClick={this.handleGoHome} variant="outline" className="glass border-border/50">
                 Go to Home
               </Button>
             </div>
@@ -93,3 +89,4 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export default ErrorBoundary;
+
