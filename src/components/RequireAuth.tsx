@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const REQUIRE_AUTH_TIMEOUT_MS = 8000;
 const RequireAuth = ({ children }: RequireAuthProps) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // If sessionStorage is blocked, getAuthBootTimestamp() may fall back to in-memory.
   // We still want a stable value for this component instance.
@@ -55,7 +56,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
             </header>
 
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button className="w-full" onClick={() => (window.location.href = "/auth")}>
+              <Button className="w-full" onClick={() => navigate("/auth", { replace: true, state: { from: location } })}>
                 Go to login
               </Button>
               <Button className="w-full" variant="outline" onClick={() => resetAuthSession()}>
