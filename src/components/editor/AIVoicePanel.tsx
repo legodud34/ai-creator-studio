@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mic, Loader2, Play, Pause, X } from 'lucide-react';
+import { Mic, Loader2, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -132,35 +132,41 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg bg-[#1e1e1e] border-[#3a3a3a] text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5 text-blue-500" />
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+              <Mic className="h-4 w-4 text-cyan-400" />
+            </div>
             AI Voiceover
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Text to speak</Label>
+            <Label className="text-gray-400 text-xs">Script</Label>
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter the text you want to convert to speech..."
-              className="mt-1.5 min-h-[100px]"
+              className="mt-1.5 min-h-[100px] bg-[#252525] border-[#3a3a3a] text-white placeholder:text-gray-600 focus:border-cyan-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Voice</Label>
+              <Label className="text-gray-400 text-xs">Voice</Label>
               <Select value={voiceId} onValueChange={setVoiceId}>
-                <SelectTrigger className="mt-1.5">
+                <SelectTrigger className="mt-1.5 bg-[#252525] border-[#3a3a3a] text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#252525] border-[#3a3a3a]">
                   {VOICES.map(voice => (
-                    <SelectItem key={voice.id} value={voice.id}>
+                    <SelectItem 
+                      key={voice.id} 
+                      value={voice.id}
+                      className="text-gray-300 focus:bg-[#3a3a3a] focus:text-white"
+                    >
                       {voice.name} ({voice.gender})
                     </SelectItem>
                   ))}
@@ -169,7 +175,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
             </div>
 
             <div>
-              <Label>Speed: {speed[0]}%</Label>
+              <Label className="text-gray-400 text-xs">Speed: {speed[0]}%</Label>
               <Slider
                 value={speed}
                 onValueChange={setSpeed}
@@ -182,7 +188,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
           </div>
 
           <div>
-            <Label>Stability: {stability[0]}%</Label>
+            <Label className="text-gray-400 text-xs">Stability: {stability[0]}%</Label>
             <Slider
               value={stability}
               onValueChange={setStability}
@@ -191,7 +197,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
               step={5}
               className="mt-2"
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] text-gray-600 mt-1">
               Lower = more expressive, Higher = more consistent
             </p>
           </div>
@@ -199,7 +205,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
           <Button
             onClick={handleGenerate}
             disabled={isGenerating || !text.trim()}
-            className="w-full"
+            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white"
           >
             {isGenerating ? (
               <>
@@ -215,26 +221,26 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
           </Button>
 
           {previewUrl && (
-            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <div className="p-4 bg-[#252525] border border-[#3a3a3a] rounded-lg space-y-3">
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={togglePlay}
-                  className="h-10 w-10 rounded-full"
+                  className="h-10 w-10 rounded-full bg-cyan-500 hover:bg-cyan-400 border-0"
                 >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isPlaying ? <Pause className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white ml-0.5" />}
                 </Button>
                 <div>
-                  <p className="text-sm font-medium">Preview</p>
-                  <p className="text-xs text-muted-foreground">
-                    Duration: {previewDuration.toFixed(1)}s
+                  <p className="text-sm font-medium text-gray-300">Preview</p>
+                  <p className="text-xs text-gray-500 font-mono">
+                    {previewDuration.toFixed(1)}s
                   </p>
                 </div>
               </div>
 
-              <Button onClick={handleAdd} className="w-full">
-                Add to Timeline
+              <Button onClick={handleAdd} className="w-full bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white">
+                Add to Media Library
               </Button>
             </div>
           )}

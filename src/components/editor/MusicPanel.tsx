@@ -8,18 +8,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 
 const MUSIC_SUGGESTIONS = [
-  'Upbeat electronic dance music',
+  'Upbeat electronic',
   'Calm ambient piano',
-  'Epic cinematic orchestral',
-  'Lo-fi hip hop beats',
-  'Dramatic suspense music',
-  'Happy acoustic guitar',
+  'Epic cinematic',
+  'Lo-fi hip hop',
+  'Dramatic suspense',
+  'Happy acoustic',
   'Dark synthwave',
-  'Peaceful nature sounds with soft melody',
-  'Energetic rock drums',
-  'Romantic string quartet',
-  'Futuristic sci-fi atmosphere',
-  'Jazzy cafe background',
+  'Peaceful nature',
+  'Energetic rock',
+  'Romantic strings',
+  'Futuristic sci-fi',
+  'Jazzy cafe',
 ];
 
 interface MusicPanelProps {
@@ -119,35 +119,37 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg bg-[#1e1e1e] border-[#3a3a3a] text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5 text-purple-500" />
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <Music className="h-4 w-4 text-violet-400" />
+            </div>
             AI Music Generator
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Describe the music</Label>
+            <Label className="text-gray-400 text-xs">Describe the music</Label>
             <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., Upbeat electronic dance music with synths"
-              className="mt-1.5"
+              className="mt-1.5 bg-[#252525] border-[#3a3a3a] text-white placeholder:text-gray-600 focus:border-violet-500"
             />
           </div>
 
           <div>
-            <Label>Genre suggestions</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {MUSIC_SUGGESTIONS.slice(0, 6).map(suggestion => (
+            <Label className="text-gray-400 text-xs">Genre suggestions</Label>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {MUSIC_SUGGESTIONS.slice(0, 8).map(suggestion => (
                 <Button
                   key={suggestion}
                   variant="outline"
                   size="sm"
                   onClick={() => setPrompt(suggestion)}
-                  className="text-xs"
+                  className="text-[10px] h-7 bg-[#252525] border-[#3a3a3a] text-gray-400 hover:text-white hover:border-violet-500/50"
                 >
                   {suggestion}
                 </Button>
@@ -156,7 +158,7 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
           </div>
 
           <div>
-            <Label>Duration: {duration[0]}s</Label>
+            <Label className="text-gray-400 text-xs">Duration: {duration[0]}s</Label>
             <Slider
               value={duration}
               onValueChange={setDuration}
@@ -170,12 +172,12 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
           <Button
             onClick={handleGenerate}
             disabled={isGenerating || !prompt.trim()}
-            className="w-full"
+            className="w-full bg-violet-600 hover:bg-violet-500 text-white"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating... (this may take a minute)
+                Generating... (may take a minute)
               </>
             ) : (
               <>
@@ -186,26 +188,26 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
           </Button>
 
           {previewUrl && (
-            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <div className="p-4 bg-[#252525] border border-[#3a3a3a] rounded-lg space-y-3">
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={togglePlay}
-                  className="h-10 w-10 rounded-full"
+                  className="h-10 w-10 rounded-full bg-violet-500 hover:bg-violet-400 border-0"
                 >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isPlaying ? <Pause className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white ml-0.5" />}
                 </Button>
                 <div>
-                  <p className="text-sm font-medium">Preview</p>
-                  <p className="text-xs text-muted-foreground">
-                    Duration: {previewDuration.toFixed(1)}s
+                  <p className="text-sm font-medium text-gray-300">Preview</p>
+                  <p className="text-xs text-gray-500 font-mono">
+                    {previewDuration.toFixed(1)}s
                   </p>
                 </div>
               </div>
 
-              <Button onClick={handleAdd} className="w-full">
-                Add to Timeline
+              <Button onClick={handleAdd} className="w-full bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white">
+                Add to Media Library
               </Button>
             </div>
           )}
