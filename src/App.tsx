@@ -24,6 +24,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import Editor from "./pages/Editor";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
               <Route path="/credit-shop" element={<RequireAuth><CreditShop /></RequireAuth>} />
               <Route path="/transactions" element={<RequireAuth><TransactionHistory /></RequireAuth>} />
+              <Route path="/editor" element={<RequireAuth><Editor /></RequireAuth>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
