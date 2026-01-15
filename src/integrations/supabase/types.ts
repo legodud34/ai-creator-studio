@@ -80,6 +80,60 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_assets: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          name: string
+          project_id: string | null
+          prompt: string | null
+          type: string
+          url: string
+          user_id: string
+          voice_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          name: string
+          project_id?: string | null
+          prompt?: string | null
+          type: string
+          url: string
+          user_id: string
+          voice_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          name?: string
+          project_id?: string | null
+          prompt?: string | null
+          type?: string
+          url?: string
+          user_id?: string
+          voice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "editor_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_assets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banned_users: {
         Row: {
           banned_at: string
@@ -185,6 +239,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      editor_projects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          timeline_data: Json | null
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          timeline_data?: Json | null
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          timeline_data?: Json | null
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editor_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       follows: {
         Row: {
