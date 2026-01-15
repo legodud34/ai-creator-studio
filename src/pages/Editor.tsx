@@ -1,14 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Save, Download, RotateCcw, Play, Pause, 
-  SkipBack, SkipForward, Scissors, Undo2, Redo2,
-  ChevronDown, Keyboard, HelpCircle
+  ArrowLeft, Play, Pause, SkipBack, SkipForward,
+  Volume2, VolumeX, Maximize, Share2, Settings,
+  Film, Mic, Music, Sparkles, Wand2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEditorState, type AudioClip } from '@/hooks/useEditorState';
 import { PreviewPlayer } from '@/components/editor/PreviewPlayer';
 import { Timeline } from '@/components/editor/Timeline';
@@ -16,11 +15,6 @@ import { MediaLibrary } from '@/components/editor/MediaLibrary';
 import { AIVoicePanel } from '@/components/editor/AIVoicePanel';
 import { SFXPanel } from '@/components/editor/SFXPanel';
 import { MusicPanel } from '@/components/editor/MusicPanel';
-import { InspectorPanel } from '@/components/editor/InspectorPanel';
-import { EffectsBrowser } from '@/components/editor/EffectsBrowser';
-import { ColorGrading } from '@/components/editor/ColorGrading';
-import { AudioMeter } from '@/components/editor/AudioMeter';
-import { ToolPalette, type EditorTool } from '@/components/editor/ToolPalette';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -37,19 +31,15 @@ export default function Editor() {
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [sfxPanelOpen, setSfxPanelOpen] = useState(false);
   const [musicPanelOpen, setMusicPanelOpen] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [snapping, setSnapping] = useState(true);
-  const [activeTool, setActiveTool] = useState<EditorTool>('select');
-  const [rightPanel, setRightPanel] = useState<'inspector' | 'effects' | 'color'>('inspector');
-
-  const selectedClip = project.audioTracks.find(c => c.id === selectedClipId) || null;
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
 
   const handleVideoUpload = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
     setProjectName(file.name.replace(/\.[^/.]+$/, ''));
-    toast.success('Video loaded');
+    toast.success('Video imported successfully');
   }, [setVideoUrl, setProjectName]);
 
   const handleAudioGenerated = useCallback((type: 'voiceover' | 'sfx' | 'music', audio: any) => {
@@ -69,15 +59,13 @@ export default function Editor() {
 
   const handleAddClipToTimeline = useCallback((asset: Omit<AudioClip, 'id' | 'startTime'>) => {
     addAudioClip({ ...asset, startTime: project.currentTime });
-    toast.success(`Added ${asset.name} to timeline`);
+    toast.success(`Added to timeline`);
   }, [addAudioClip, project.currentTime]);
 
   const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
+    const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    const frames = Math.floor((seconds % 1) * 30);
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Keyboard shortcuts
@@ -87,12 +75,15 @@ export default function Editor() {
       
       switch (e.code) {
         case 'Space': e.preventDefault(); togglePlayPause(); break;
-        case 'Delete': if (selectedClipId) removeAudioClip(selectedClipId); break;
-        case 'ArrowLeft': e.preventDefault(); setCurrentTime(Math.max(0, project.currentTime - 5)); break;
-        case 'ArrowRight': e.preventDefault(); setCurrentTime(Math.min(getTotalDuration(), project.currentTime + 5)); break;
-        case 'KeyV': setActiveTool('select'); break;
-        case 'KeyH': setActiveTool('hand'); break;
-        case 'KeyB': setActiveTool('blade'); break;
+        case 'Delete':
+        case 'Backspace': 
+          if (selectedClipId) {
+            removeAudioClip(selectedClipId);
+            toast.success('Clip deleted');
+          }
+          break;
+        case 'ArrowLeft': e.preventDefault(); setCurrentTime(Math.max(0, project.currentTime - 1)); break;
+        case 'ArrowRight': e.preventDefault(); setCurrentTime(Math.min(getTotalDuration(), project.currentTime + 1)); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -101,119 +92,248 @@ export default function Editor() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="h-screen flex flex-col bg-[#161616] text-white overflow-hidden">
-        {/* Top Menu Bar */}
-        <header className="h-10 bg-[#1e1e1e] border-b border-[#2a2a2a] flex items-center px-2 gap-1">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 px-2 text-xs text-gray-400 hover:text-white">
-            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />Exit
+      <div className="h-screen flex flex-col bg-gradient-to-b from-[#1c1c1e] to-[#000000] text-white overflow-hidden">
+        {/* Top Bar - iMovie style with gradient */}
+        <header className="h-12 bg-gradient-to-b from-[#3a3a3c] to-[#2c2c2e] border-b border-black/50 flex items-center px-4 gap-3 shadow-lg">
+          {/* Left - Back button */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/')} 
+            className="h-8 px-3 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded-lg"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Projects
           </Button>
-          
-          <div className="h-4 w-px bg-[#3a3a3a] mx-1" />
-          
-          {isEditingName ? (
-            <Input value={project.name} onChange={(e) => setProjectName(e.target.value)}
-              onBlur={() => setIsEditingName(false)} onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-              className="w-48 h-7 text-xs bg-[#0a0a0a] border-[#3a3a3a]" autoFocus />
-          ) : (
-            <button onClick={() => setIsEditingName(true)} className="text-xs font-medium text-gray-300 hover:text-white px-2">
-              {project.name}<ChevronDown className="h-3 w-3 inline ml-1 opacity-50" />
-            </button>
-          )}
 
           <div className="flex-1" />
 
-          {/* Transport Controls */}
-          <div className="flex items-center gap-1 bg-[#0a0a0a] rounded-lg px-3 py-1">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentTime(Math.max(0, project.currentTime - 5))}>
-              <SkipBack className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", project.isPlaying && "bg-primary/20")} onClick={togglePlayPause}>
-              {project.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentTime(Math.min(getTotalDuration(), project.currentTime + 5))}>
-              <SkipForward className="h-3.5 w-3.5" />
-            </Button>
-            <div className="h-4 w-px bg-[#3a3a3a] mx-2" />
-            <span className="text-[11px] font-mono text-primary min-w-[100px]">{formatTime(project.currentTime)}</span>
+          {/* Center - Project name */}
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <input
+              value={project.name}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="text-sm font-medium text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-3 py-1 min-w-[200px] text-white"
+              placeholder="Untitled Project"
+            />
           </div>
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { resetProject(); setAudioAssets([]); toast.success('Reset'); }}>
-              <RotateCcw className="h-3.5 w-3.5" />
+          {/* Right - Actions */}
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
+            
+            <Button 
+              size="sm" 
+              className="h-8 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg shadow-blue-600/25"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-3 text-xs"><Save className="h-3.5 w-3.5 mr-1.5" />Save</Button>
-            <Button size="sm" className="h-7 px-3 text-xs bg-primary hover:bg-primary/90"><Download className="h-3.5 w-3.5 mr-1.5" />Export</Button>
           </div>
         </header>
 
-        {/* Toolbar */}
-        <div className="h-8 bg-[#1a1a1a] border-b border-[#2a2a2a] flex items-center px-3 gap-2">
-          <div className="flex items-center gap-0.5">
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><Undo2 className="h-3.5 w-3.5 text-gray-500" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><Redo2 className="h-3.5 w-3.5 text-gray-500" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
-          </div>
-          <div className="h-4 w-px bg-[#3a3a3a]" />
-          <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><Scissors className="h-3.5 w-3.5 text-gray-500" /></Button></TooltipTrigger><TooltipContent>Split (B)</TooltipContent></Tooltip>
-          <div className="flex-1" />
-          <span className="text-[9px] text-gray-600">Tool: {activeTool}</span>
-        </div>
-
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Tool Palette */}
-          <ToolPalette activeTool={activeTool} onToolChange={setActiveTool} />
-
-          {/* Left Panel - Media & Effects */}
-          <div className="w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] flex flex-col">
-            <Tabs defaultValue="media" className="flex-1 flex flex-col">
-              <TabsList className="grid grid-cols-2 h-8 bg-[#222] rounded-none border-b border-[#2a2a2a]">
-                <TabsTrigger value="media" className="text-[10px] rounded-none data-[state=active]:bg-[#2a2a2a]">Media</TabsTrigger>
-                <TabsTrigger value="effects" className="text-[10px] rounded-none data-[state=active]:bg-[#2a2a2a]">Effects</TabsTrigger>
-              </TabsList>
-              <TabsContent value="media" className="flex-1 m-0">
-                <MediaLibrary videoUrl={project.videoUrl} audioAssets={audioAssets} onVideoUpload={handleVideoUpload}
-                  onOpenVoicePanel={() => setVoicePanelOpen(true)} onOpenSFXPanel={() => setSfxPanelOpen(true)}
-                  onOpenMusicPanel={() => setMusicPanelOpen(true)} onAddClipToTimeline={handleAddClipToTimeline} />
-              </TabsContent>
-              <TabsContent value="effects" className="flex-1 m-0"><EffectsBrowser /></TabsContent>
-            </Tabs>
+          {/* Left Panel - Media Browser */}
+          <div className="w-72 bg-[#1c1c1e] border-r border-[#3a3a3c]/50 flex flex-col">
+            <MediaLibrary 
+              videoUrl={project.videoUrl} 
+              audioAssets={audioAssets} 
+              onVideoUpload={handleVideoUpload}
+              onOpenVoicePanel={() => setVoicePanelOpen(true)} 
+              onOpenSFXPanel={() => setSfxPanelOpen(true)}
+              onOpenMusicPanel={() => setMusicPanelOpen(true)} 
+              onAddClipToTimeline={handleAddClipToTimeline} 
+            />
           </div>
 
-          {/* Center - Preview and Timeline */}
-          <div className="flex-1 flex flex-col bg-[#0a0a0a]">
-            <div className="flex-1 min-h-0 p-3 flex gap-3">
-              {/* Preview */}
-              <div className="flex-1"><PreviewPlayer videoUrl={project.videoUrl} currentTime={project.currentTime} isPlaying={project.isPlaying}
-                onTimeUpdate={setCurrentTime} onDurationChange={setVideoDuration} onPlayPause={togglePlayPause} videoRef={videoRef} /></div>
-              
-              {/* Audio Meter */}
-              <div className="w-8 bg-[#1a1a1a] rounded-lg p-1">
-                <AudioMeter isPlaying={project.isPlaying} volume={1} />
+          {/* Center - Preview */}
+          <div className="flex-1 flex flex-col bg-black">
+            {/* Preview Area */}
+            <div className="flex-1 relative flex items-center justify-center p-6">
+              <div className="w-full max-w-4xl aspect-video">
+                <PreviewPlayer 
+                  videoUrl={project.videoUrl} 
+                  currentTime={project.currentTime} 
+                  isPlaying={project.isPlaying}
+                  onTimeUpdate={setCurrentTime} 
+                  onDurationChange={setVideoDuration} 
+                  onPlayPause={togglePlayPause} 
+                  videoRef={videoRef} 
+                />
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="h-56 border-t border-[#2a2a2a]">
-              <Timeline duration={getTotalDuration() || 60} currentTime={project.currentTime} audioTracks={project.audioTracks}
-                selectedClipId={selectedClipId} zoom={zoom} isPlaying={project.isPlaying} snapping={snapping}
-                onSeek={setCurrentTime} onSelectClip={setSelectedClipId} onUpdateClip={updateAudioClip}
-                onRemoveClip={removeAudioClip} onZoomChange={setZoom} onSnappingChange={setSnapping} />
+            {/* Playback Controls - iMovie style centered */}
+            <div className="h-16 bg-gradient-to-t from-[#1c1c1e] to-transparent flex items-center justify-center gap-4 px-6">
+              {/* Time display */}
+              <div className="text-sm font-mono text-gray-400 min-w-[60px] text-right">
+                {formatTime(project.currentTime)}
+              </div>
+
+              {/* Transport controls */}
+              <div className="flex items-center gap-1 bg-[#2c2c2e] rounded-full p-1 shadow-xl">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-10 w-10 rounded-full text-gray-300 hover:text-white hover:bg-white/10"
+                      onClick={() => setCurrentTime(Math.max(0, project.currentTime - 10))}
+                    >
+                      <SkipBack className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Rewind</TooltipContent>
+                </Tooltip>
+
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn(
+                    "h-12 w-12 rounded-full transition-all",
+                    project.isPlaying 
+                      ? "bg-white text-black hover:bg-gray-200" 
+                      : "bg-blue-600 text-white hover:bg-blue-500"
+                  )}
+                  onClick={togglePlayPause}
+                >
+                  {project.isPlaying ? (
+                    <Pause className="h-6 w-6" />
+                  ) : (
+                    <Play className="h-6 w-6 ml-0.5" />
+                  )}
+                </Button>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-10 w-10 rounded-full text-gray-300 hover:text-white hover:bg-white/10"
+                      onClick={() => setCurrentTime(Math.min(getTotalDuration(), project.currentTime + 10))}
+                    >
+                      <SkipForward className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Forward</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Duration */}
+              <div className="text-sm font-mono text-gray-400 min-w-[60px]">
+                {formatTime(getTotalDuration())}
+              </div>
+
+              {/* Volume */}
+              <div className="flex items-center gap-2 ml-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="h-8 w-8 rounded-full text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
+                <Slider
+                  value={[isMuted ? 0 : volume * 100]}
+                  onValueChange={([val]) => {
+                    setVolume(val / 100);
+                    if (val > 0) setIsMuted(false);
+                  }}
+                  max={100}
+                  step={1}
+                  className="w-24"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Right Panel - Inspector/Color */}
-          <div className="w-64 bg-[#1a1a1a] border-l border-[#2a2a2a] flex flex-col">
-            <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)} className="flex-1 flex flex-col">
-              <TabsList className="grid grid-cols-2 h-8 bg-[#222] rounded-none border-b border-[#2a2a2a]">
-                <TabsTrigger value="inspector" className="text-[10px] rounded-none data-[state=active]:bg-[#2a2a2a]">Inspector</TabsTrigger>
-                <TabsTrigger value="color" className="text-[10px] rounded-none data-[state=active]:bg-[#2a2a2a]">Color</TabsTrigger>
-              </TabsList>
-              <TabsContent value="inspector" className="flex-1 m-0"><InspectorPanel selectedClip={selectedClip} onUpdateClip={updateAudioClip} /></TabsContent>
-              <TabsContent value="color" className="flex-1 m-0"><ColorGrading /></TabsContent>
-            </Tabs>
+          {/* Right Panel - Quick Actions */}
+          <div className="w-16 bg-[#1c1c1e] border-l border-[#3a3a3c]/50 flex flex-col items-center py-4 gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setVoicePanelOpen(true)}
+                  className="h-12 w-12 rounded-xl bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 hover:text-cyan-300"
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">AI Voice</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSfxPanelOpen(true)}
+                  className="h-12 w-12 rounded-xl bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 hover:text-amber-300"
+                >
+                  <Sparkles className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">AI Sound FX</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMusicPanelOpen(true)}
+                  className="h-12 w-12 rounded-xl bg-violet-600/20 text-violet-400 hover:bg-violet-600/30 hover:text-violet-300"
+                >
+                  <Music className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">AI Music</TooltipContent>
+            </Tooltip>
+
+            <div className="flex-1" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-12 w-12 rounded-xl bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 hover:text-purple-300"
+                >
+                  <Wand2 className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Magic Tools</TooltipContent>
+            </Tooltip>
           </div>
+        </div>
+
+        {/* Timeline - iMovie style at bottom */}
+        <div className="h-48 bg-[#1c1c1e] border-t border-[#3a3a3c]/50">
+          <Timeline 
+            duration={getTotalDuration() || 60} 
+            currentTime={project.currentTime} 
+            audioTracks={project.audioTracks}
+            selectedClipId={selectedClipId} 
+            zoom={zoom} 
+            isPlaying={project.isPlaying}
+            onSeek={setCurrentTime} 
+            onSelectClip={setSelectedClipId} 
+            onUpdateClip={updateAudioClip}
+            onRemoveClip={removeAudioClip} 
+            onZoomChange={setZoom}
+          />
         </div>
 
         {/* AI Panels */}
