@@ -42,6 +42,12 @@ export default function Editor() {
     toast.success('Video imported successfully');
   }, [setVideoUrl, setProjectName]);
 
+  const handleVideoSelect = useCallback((url: string, name: string) => {
+    setVideoUrl(url);
+    setProjectName(name);
+    toast.success('Media loaded');
+  }, [setVideoUrl, setProjectName]);
+
   const handleAudioGenerated = useCallback((type: 'voiceover' | 'sfx' | 'music', audio: any) => {
     const newAsset: AudioClip = {
       id: crypto.randomUUID(),
@@ -149,6 +155,7 @@ export default function Editor() {
               videoUrl={project.videoUrl} 
               audioAssets={audioAssets} 
               onVideoUpload={handleVideoUpload}
+              onVideoSelect={handleVideoSelect}
               onOpenVoicePanel={() => setVoicePanelOpen(true)} 
               onOpenSFXPanel={() => setSfxPanelOpen(true)}
               onOpenMusicPanel={() => setMusicPanelOpen(true)} 

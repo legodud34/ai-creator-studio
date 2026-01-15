@@ -1,34 +1,94 @@
-import { useState, useRef } from 'react';
-import { Upload, Film, Mic, Music, Sparkles, Plus, Play, Pause, Clock } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, Film, Mic, Music, Sparkles, Plus, Play, Pause, Clock, Folder, Image, Loader2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import type { AudioClip } from '@/hooks/useEditorState';
 
 interface MediaLibraryProps {
   videoUrl?: string;
   audioAssets: AudioClip[];
   onVideoUpload: (file: File) => void;
+  onVideoSelect: (url: string, name: string) => void;
   onOpenVoicePanel: () => void;
   onOpenSFXPanel: () => void;
   onOpenMusicPanel: () => void;
   onAddClipToTimeline: (clip: Omit<AudioClip, 'id' | 'startTime'>) => void;
 }
 
+interface SavedVideo {
+  id: string;
+  url: string;
+  title: string | null;
+  prompt: string;
+  created_at: string;
+}
+
+interface SavedImage {
+  id: string;
+  url: string;
+  title: string | null;
+  prompt: string;
+  created_at: string;
+}
+
 type TabType = 'media' | 'audio';
+type MediaSource = 'upload' | 'library';
 
 export function MediaLibrary({
   videoUrl,
   audioAssets,
   onVideoUpload,
+  onVideoSelect,
   onOpenVoicePanel,
   onOpenSFXPanel,
   onOpenMusicPanel,
   onAddClipToTimeline,
 }: MediaLibraryProps) {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('media');
+  const [mediaSource, setMediaSource] = useState<MediaSource>('upload');
+  const [savedVideos, setSavedVideos] = useState<SavedVideo[]>([]);
+  const [savedImages, setSavedImages] = useState<SavedImage[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+
+  // Fetch user's saved videos and images
+  useEffect(() => {
+    async function fetchUserMedia() {
+      if (!user) return;
+      
+      setIsLoadingMedia(true);
+      try {
+        const [videosRes, imagesRes] = await Promise.all([
+          supabase
+            .from('videos')
+            .select('id, url, title, prompt, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50),
+          supabase
+            .from('images')
+            .select('id, url, title, prompt, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        ]);
+
+        if (videosRes.data) setSavedVideos(videosRes.data);
+        if (imagesRes.data) setSavedImages(imagesRes.data);
+      } catch (error) {
+        console.error('Error fetching media:', error);
+      } finally {
+        setIsLoadingMedia(false);
+      }
+    }
+
+    fetchUserMedia();
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,50 +150,160 @@ export function MediaLibrary({
         <div className="p-4">
           {activeTab === 'media' && (
             <div className="space-y-4">
-              {/* Import Section */}
-              <div
-                className={cn(
-                  'border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer',
-                  dragOver 
-                    ? 'border-blue-500 bg-blue-500/10' 
-                    : 'border-[#3a3a3c] hover:border-[#555] hover:bg-[#2c2c2e]'
-                )}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3a3a3c] to-[#2c2c2e] flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <Upload className="h-6 w-6 text-gray-400" />
-                </div>
-                <p className="text-sm font-medium text-gray-300">
-                  Import Media
-                </p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Drag & drop or click to browse
-                </p>
+              {/* Source Toggle */}
+              <div className="flex gap-1 p-1 bg-[#2c2c2e] rounded-lg">
+                <button
+                  onClick={() => setMediaSource('upload')}
+                  className={cn(
+                    'flex-1 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5',
+                    mediaSource === 'upload' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-400 hover:text-white'
+                  )}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload
+                </button>
+                <button
+                  onClick={() => setMediaSource('library')}
+                  className={cn(
+                    'flex-1 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5',
+                    mediaSource === 'library' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-400 hover:text-white'
+                  )}
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                  My Library
+                </button>
               </div>
 
-              {/* Video Thumbnail */}
-              {videoUrl && (
-                <div className="space-y-2">
-                  <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide">Project Media</h3>
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-[#2c2c2e] border border-[#3a3a3c] group cursor-pointer hover:border-blue-500 transition-colors">
-                    <video src={videoUrl} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Play className="h-8 w-8 text-white" />
+              {mediaSource === 'upload' && (
+                <>
+                  {/* Import Section */}
+                  <div
+                    className={cn(
+                      'border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer',
+                      dragOver 
+                        ? 'border-blue-500 bg-blue-500/10' 
+                        : 'border-[#3a3a3c] hover:border-[#555] hover:bg-[#2c2c2e]'
+                    )}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3a3a3c] to-[#2c2c2e] flex items-center justify-center mx-auto mb-3 shadow-lg">
+                      <Upload className="h-6 w-6 text-gray-400" />
                     </div>
-                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[10px] text-white font-mono">
-                      Video
-                    </div>
+                    <p className="text-sm font-medium text-gray-300">
+                      Import from Device
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Drag & drop or click to browse
+                    </p>
                   </div>
+
+                  {/* Current Video Thumbnail */}
+                  {videoUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide">Current Project</h3>
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-[#2c2c2e] border-2 border-blue-500">
+                        <video src={videoUrl} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-blue-600 rounded text-[10px] text-white font-medium">
+                          Active
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {mediaSource === 'library' && (
+                <div className="space-y-4">
+                  {isLoadingMedia ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+                    </div>
+                  ) : (
+                    <>
+                      {/* My Videos */}
+                      {savedVideos.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium text-gray-400 flex items-center gap-2">
+                            <Video className="h-3 w-3" />
+                            My Videos ({savedVideos.length})
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {savedVideos.map(video => (
+                              <button
+                                key={video.id}
+                                onClick={() => onVideoSelect(video.url, video.title || 'Untitled Video')}
+                                className={cn(
+                                  'relative aspect-video rounded-lg overflow-hidden bg-[#2c2c2e] border transition-all group',
+                                  videoUrl === video.url 
+                                    ? 'border-blue-500 ring-2 ring-blue-500/30' 
+                                    : 'border-[#3a3a3c] hover:border-blue-500/50'
+                                )}
+                              >
+                                <video src={video.url} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Play className="h-6 w-6 text-white" />
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent">
+                                  <p className="text-[9px] text-white truncate">{video.title || 'Untitled'}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* My Images */}
+                      {savedImages.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-medium text-gray-400 flex items-center gap-2">
+                            <Image className="h-3 w-3" />
+                            My Images ({savedImages.length})
+                          </h3>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {savedImages.slice(0, 12).map(image => (
+                              <button
+                                key={image.id}
+                                onClick={() => onVideoSelect(image.url, image.title || 'Image')}
+                                className="relative aspect-square rounded-md overflow-hidden bg-[#2c2c2e] border border-[#3a3a3c] hover:border-blue-500/50 transition-all group"
+                              >
+                                <img src={image.url} alt="" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Plus className="h-4 w-4 text-white" />
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {savedVideos.length === 0 && savedImages.length === 0 && (
+                        <div className="text-center py-8">
+                          <div className="w-16 h-16 rounded-2xl bg-[#2c2c2e] flex items-center justify-center mx-auto mb-3">
+                            <Folder className="h-7 w-7 text-gray-600" />
+                          </div>
+                          <p className="text-sm text-gray-500">No saved media</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {user ? 'Generate videos and images to see them here' : 'Sign in to access your media'}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
