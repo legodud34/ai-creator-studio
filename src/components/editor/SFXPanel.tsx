@@ -119,35 +119,37 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg bg-[#1e1e1e] border-[#3a3a3a] text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-orange-500" />
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-amber-400" />
+            </div>
             AI Sound Effects
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Describe the sound</Label>
+            <Label className="text-gray-400 text-xs">Describe the sound</Label>
             <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., Thunder rumbling in the distance"
-              className="mt-1.5"
+              className="mt-1.5 bg-[#252525] border-[#3a3a3a] text-white placeholder:text-gray-600 focus:border-amber-500"
             />
           </div>
 
           <div>
-            <Label>Quick suggestions</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {SFX_SUGGESTIONS.slice(0, 6).map(suggestion => (
+            <Label className="text-gray-400 text-xs">Quick suggestions</Label>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {SFX_SUGGESTIONS.slice(0, 8).map(suggestion => (
                 <Button
                   key={suggestion}
                   variant="outline"
                   size="sm"
                   onClick={() => setPrompt(suggestion)}
-                  className="text-xs"
+                  className="text-[10px] h-7 bg-[#252525] border-[#3a3a3a] text-gray-400 hover:text-white hover:border-amber-500/50"
                 >
                   {suggestion}
                 </Button>
@@ -156,7 +158,7 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
           </div>
 
           <div>
-            <Label>Duration: {duration[0]}s</Label>
+            <Label className="text-gray-400 text-xs">Duration: {duration[0]}s</Label>
             <Slider
               value={duration}
               onValueChange={setDuration}
@@ -165,15 +167,15 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
               step={0.5}
               className="mt-2"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Max duration: 22 seconds
+            <p className="text-[10px] text-gray-600 mt-1">
+              Max: 22 seconds
             </p>
           </div>
 
           <Button
             onClick={handleGenerate}
             disabled={isGenerating || !prompt.trim()}
-            className="w-full"
+            className="w-full bg-amber-600 hover:bg-amber-500 text-white"
           >
             {isGenerating ? (
               <>
@@ -189,26 +191,26 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
           </Button>
 
           {previewUrl && (
-            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <div className="p-4 bg-[#252525] border border-[#3a3a3a] rounded-lg space-y-3">
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={togglePlay}
-                  className="h-10 w-10 rounded-full"
+                  className="h-10 w-10 rounded-full bg-amber-500 hover:bg-amber-400 border-0"
                 >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isPlaying ? <Pause className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white ml-0.5" />}
                 </Button>
                 <div>
-                  <p className="text-sm font-medium">Preview</p>
-                  <p className="text-xs text-muted-foreground">
-                    Duration: {previewDuration.toFixed(1)}s
+                  <p className="text-sm font-medium text-gray-300">Preview</p>
+                  <p className="text-xs text-gray-500 font-mono">
+                    {previewDuration.toFixed(1)}s
                   </p>
                 </div>
               </div>
 
-              <Button onClick={handleAdd} className="w-full">
-                Add to Timeline
+              <Button onClick={handleAdd} className="w-full bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white">
+                Add to Media Library
               </Button>
             </div>
           )}

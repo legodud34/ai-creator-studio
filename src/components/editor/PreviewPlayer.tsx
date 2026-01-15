@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Play, Pause, Maximize, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,9 @@ export function PreviewPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const actualVideoRef = videoRef || localVideoRef;
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
 
   useEffect(() => {
     const video = actualVideoRef.current;
@@ -54,11 +57,11 @@ export function PreviewPlayer({
     };
   }, [actualVideoRef, onTimeUpdate, onDurationChange, onPlayPause]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  useEffect(() => {
+    if (actualVideoRef.current) {
+      actualVideoRef.current.volume = isMuted ? 0 : volume;
+    }
+  }, [volume, isMuted, actualVideoRef]);
 
   const handleFullscreen = () => {
     if (containerRef.current) {
@@ -70,74 +73,137 @@ export function PreviewPlayer({
     }
   };
 
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+  };
+
   return (
     <div 
       ref={containerRef}
-      className="flex flex-col h-full bg-black rounded-lg overflow-hidden"
+      className="relative h-full w-full flex items-center justify-center bg-[#0a0a0a] rounded-lg overflow-hidden group"
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
     >
-      {/* Video Area */}
-      <div className="flex-1 flex items-center justify-center relative">
-        {videoUrl ? (
-          <video
-            ref={actualVideoRef as React.RefObject<HTMLVideoElement>}
-            src={videoUrl}
-            className="max-w-full max-h-full object-contain"
-            onClick={onPlayPause}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center text-muted-foreground gap-4">
-            <div className="w-24 h-24 rounded-full bg-muted/20 flex items-center justify-center">
-              <Play className="w-12 h-12" />
-            </div>
-            <p className="text-sm">Upload a video to get started</p>
+      {/* Checkerboard background for transparency */}
+      <div 
+        className="absolute inset-0 opacity-20"
+        style={{
+          backgroundImage: `
+            linear-gradient(45deg, #333 25%, transparent 25%),
+            linear-gradient(-45deg, #333 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #333 75%),
+            linear-gradient(-45deg, transparent 75%, #333 75%)
+          `,
+          backgroundSize: '20px 20px',
+          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+        }}
+      />
+      
+      {/* Video */}
+      {videoUrl ? (
+        <video
+          ref={actualVideoRef as React.RefObject<HTMLVideoElement>}
+          src={videoUrl}
+          className="relative z-10 max-w-full max-h-full object-contain"
+          onClick={onPlayPause}
+        />
+      ) : (
+        <div className="relative z-10 flex flex-col items-center justify-center text-gray-500 gap-6">
+          <div className="w-24 h-24 rounded-2xl bg-[#252525] border border-[#3a3a3a] flex items-center justify-center">
+            <Play className="w-10 h-10 text-gray-600 ml-1" />
           </div>
-        )}
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-400">No video loaded</p>
+            <p className="text-xs text-gray-600 mt-1">Upload a video from the media library</p>
+          </div>
+        </div>
+      )}
 
-        {/* Play overlay */}
-        {videoUrl && !isPlaying && (
-          <button
-            onClick={onPlayPause}
-            className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
-          >
-            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center">
-              <Play className="w-8 h-8 text-black ml-1" />
-            </div>
-          </button>
-        )}
-      </div>
+      {/* Center play button overlay */}
+      {videoUrl && !isPlaying && (
+        <button
+          onClick={onPlayPause}
+          className={cn(
+            "absolute inset-0 z-20 flex items-center justify-center",
+            "bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+          )}
+        >
+          <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors">
+            <Play className="w-7 h-7 text-white ml-1" />
+          </div>
+        </button>
+      )}
 
-      {/* Controls */}
-      <div className="p-3 bg-card/50 border-t border-border/50">
+      {/* Bottom controls */}
+      <div 
+        className={cn(
+          "absolute bottom-0 left-0 right-0 z-30 p-3",
+          "bg-gradient-to-t from-black/80 to-transparent",
+          "opacity-0 group-hover:opacity-100 transition-opacity"
+        )}
+      >
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={onPlayPause}
             disabled={!videoUrl}
-            className="h-8 w-8"
+            className="h-8 w-8 text-white hover:bg-white/20"
           >
             {isPlaying ? (
               <Pause className="h-4 w-4" />
             ) : (
-              <Play className="h-4 w-4" />
+              <Play className="h-4 w-4 ml-0.5" />
             )}
           </Button>
 
-          <span className="text-xs text-muted-foreground font-mono min-w-[80px]">
-            {formatTime(currentTime)}
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleMute}
+              className="h-8 w-8 text-white hover:bg-white/20"
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="h-4 w-4" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+            </Button>
+            <Slider
+              value={[isMuted ? 0 : volume * 100]}
+              onValueChange={([val]) => {
+                setVolume(val / 100);
+                if (val > 0) setIsMuted(false);
+              }}
+              max={100}
+              step={1}
+              className="w-20"
+            />
+          </div>
+
+          <div className="flex-1" />
 
           <Button
             variant="ghost"
             size="icon"
             onClick={handleFullscreen}
             disabled={!videoUrl}
-            className="h-8 w-8 ml-auto"
+            className="h-8 w-8 text-white hover:bg-white/20"
           >
             <Maximize className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      {/* Video info overlay */}
+      {videoUrl && (
+        <div className="absolute top-3 left-3 z-20">
+          <div className="px-2 py-1 rounded bg-black/60 backdrop-blur-sm">
+            <span className="text-[10px] text-gray-300 font-mono">1920 × 1080</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
