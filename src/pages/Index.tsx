@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Video, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Wand2, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
-import VideoGenerator from "@/components/VideoGenerator";
+import { VideoEditor } from "@/components/VideoEditor";
 import TrendingSection from "@/components/TrendingSection";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 import SearchBar from "@/components/SearchBar";
@@ -158,11 +158,11 @@ const Index = () => {
               Images
             </TabsTrigger>
             <TabsTrigger
-              value="videos"
+              value="editor"
               className="h-full text-xs md:text-sm font-medium data-[state=active]:gradient-accent data-[state=active]:text-accent-foreground rounded-lg transition-all"
             >
-              <Video className="w-4 h-4 mr-1 md:mr-2" />
-              Videos
+              <Wand2 className="w-4 h-4 mr-1 md:mr-2" />
+              AI Edit
             </TabsTrigger>
           </TabsList>
 
@@ -170,8 +170,8 @@ const Index = () => {
             <ImageGenerator />
           </TabsContent>
 
-          <TabsContent value="videos" className="mt-6 md:mt-8">
-            <VideoGenerator />
+          <TabsContent value="editor" className="mt-6 md:mt-8">
+            <VideoEditor />
           </TabsContent>
         </Tabs>
 
