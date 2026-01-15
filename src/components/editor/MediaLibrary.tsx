@@ -180,13 +180,22 @@ export function MediaLibrary({
 
               {mediaSource === 'upload' && (
                 <>
-                  {/* Import Section */}
+                  {/* Primary Upload Button */}
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl shadow-lg"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose Video from Files
+                  </Button>
+
+                  {/* Drag & Drop Zone */}
                   <div
                     className={cn(
-                      'border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer',
+                      'border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer',
                       dragOver 
-                        ? 'border-blue-500 bg-blue-500/10' 
-                        : 'border-[#3a3a3c] hover:border-[#555] hover:bg-[#2c2c2e]'
+                        ? 'border-blue-500 bg-blue-500/20 scale-[1.02]' 
+                        : 'border-[#3a3a3c] hover:border-blue-500/50 hover:bg-[#2c2c2e]'
                     )}
                     onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                     onDragLeave={() => setDragOver(false)}
@@ -196,18 +205,21 @@ export function MediaLibrary({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="video/*"
+                      accept="video/*,image/*"
                       className="hidden"
                       onChange={handleFileChange}
                     />
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3a3a3c] to-[#2c2c2e] flex items-center justify-center mx-auto mb-3 shadow-lg">
-                      <Upload className="h-6 w-6 text-gray-400" />
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600/30 to-blue-600/10 flex items-center justify-center mx-auto mb-4 shadow-lg border border-blue-500/30">
+                      <Film className="h-7 w-7 text-blue-400" />
                     </div>
-                    <p className="text-sm font-medium text-gray-300">
-                      Import from Device
+                    <p className="text-sm font-semibold text-white mb-1">
+                      Drag & Drop Your Video
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Drag & drop or click to browse
+                    <p className="text-xs text-gray-500">
+                      Or click anywhere to browse files
+                    </p>
+                    <p className="text-[10px] text-gray-600 mt-3">
+                      Supports MP4, MOV, WebM, and more
                     </p>
                   </div>
 
@@ -215,7 +227,7 @@ export function MediaLibrary({
                   {videoUrl && (
                     <div className="space-y-2">
                       <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide">Current Project</h3>
-                      <div className="relative aspect-video rounded-lg overflow-hidden bg-[#2c2c2e] border-2 border-blue-500">
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-[#2c2c2e] border-2 border-blue-500 shadow-lg shadow-blue-500/20">
                         <video src={videoUrl} className="w-full h-full object-cover" />
                         <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-blue-600 rounded text-[10px] text-white font-medium">
                           Active
