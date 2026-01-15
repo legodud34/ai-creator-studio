@@ -50,6 +50,7 @@ export function MediaLibrary({
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('media');
   const [mediaSource, setMediaSource] = useState<MediaSource>('upload');
   const [savedVideos, setSavedVideos] = useState<SavedVideo[]>([]);
@@ -92,18 +93,37 @@ export function MediaLibrary({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('video/')) {
-      onVideoUpload(file);
+    if (!file) return;
+
+    setUploadError(null);
+
+    if (!file.type.startsWith('video/')) {
+      setUploadError('Please choose a video file (MP4, MOV, WebM, etc.).');
+      // allow selecting the same file again
+      e.target.value = '';
+      return;
     }
+
+    onVideoUpload(file);
+    // allow selecting the same file again
+    e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('video/')) {
-      onVideoUpload(file);
+    if (!file) return;
+
+    setUploadError(null);
+
+    if (!file.type.startsWith('video/')) {
+      setUploadError('Please drop a video file.');
+      return;
     }
+
+    onVideoUpload(file);
   };
 
   const voiceAssets = audioAssets.filter(a => a.type === 'voiceover');
@@ -205,7 +225,7 @@ export function MediaLibrary({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="video/*,image/*"
+                      accept="video/*"
                       className="hidden"
                       onChange={handleFileChange}
                     />
@@ -222,6 +242,11 @@ export function MediaLibrary({
                       Supports MP4, MOV, WebM, and more
                     </p>
                   </div>
+                  {uploadError && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {uploadError}
+                    </div>
+                  )}
 
                   {/* Current Video Thumbnail */}
                   {videoUrl && (
