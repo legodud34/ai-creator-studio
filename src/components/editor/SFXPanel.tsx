@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Sparkles, Loader2, Play, Pause } from 'lucide-react';
+import { Sparkles, Loader2, Play, Pause, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const SFX_SUGGESTIONS = [
   'Footsteps on gravel',
@@ -22,6 +24,8 @@ const SFX_SUGGESTIONS = [
   'Water splash',
 ];
 
+const CREDITS_COST = 3;
+
 interface SFXPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,8 +40,16 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
   const [previewDuration, setPreviewDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
+    if (!user) {
+      toast.error('Please sign in to generate sound effects');
+      navigate('/auth');
+      return;
+    }
+
     if (!prompt.trim()) {
       toast.error('Please describe the sound effect');
       return;
@@ -59,12 +71,21 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
           body: JSON.stringify({
             prompt,
             duration: duration[0],
+            userId: user.id,
           }),
         }
       );
 
+      if (response.status === 402) {
+        const data = await response.json();
+        toast.error(data.error || 'Insufficient credits');
+        navigate('/credits');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to generate sound effect');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate sound effect');
       }
 
       const audioBlob = await response.blob();
@@ -84,7 +105,7 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
       toast.success('Sound effect generated!');
     } catch (error) {
       console.error('SFX error:', error);
-      toast.error('Failed to generate sound effect');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate sound effect');
     } finally {
       setIsGenerating(false);
     }
@@ -126,6 +147,10 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
               <Sparkles className="h-4 w-4 text-amber-400" />
             </div>
             AI Sound Effects
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+              <Coins className="h-3 w-3" />
+              {CREDITS_COST} credits
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -185,7 +210,7 @@ export function SFXPanel({ open, onOpenChange, onGenerated }: SFXPanelProps) {
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate Sound Effect
+                Generate Sound Effect ({CREDITS_COST} credits)
               </>
             )}
           </Button>

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Music, Loader2, Play, Pause } from 'lucide-react';
+import { Music, Loader2, Play, Pause, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const MUSIC_SUGGESTIONS = [
   'Upbeat electronic',
@@ -22,6 +24,8 @@ const MUSIC_SUGGESTIONS = [
   'Jazzy cafe',
 ];
 
+const CREDITS_COST = 10;
+
 interface MusicPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,8 +40,16 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
   const [previewDuration, setPreviewDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
+    if (!user) {
+      toast.error('Please sign in to generate music');
+      navigate('/auth');
+      return;
+    }
+
     if (!prompt.trim()) {
       toast.error('Please describe the music');
       return;
@@ -59,12 +71,21 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
           body: JSON.stringify({
             prompt,
             duration: duration[0],
+            userId: user.id,
           }),
         }
       );
 
+      if (response.status === 402) {
+        const data = await response.json();
+        toast.error(data.error || 'Insufficient credits');
+        navigate('/credits');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to generate music');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate music');
       }
 
       const audioBlob = await response.blob();
@@ -84,7 +105,7 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
       toast.success('Music generated!');
     } catch (error) {
       console.error('Music error:', error);
-      toast.error('Failed to generate music');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate music');
     } finally {
       setIsGenerating(false);
     }
@@ -126,6 +147,10 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
               <Music className="h-4 w-4 text-violet-400" />
             </div>
             AI Music Generator
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-violet-400 bg-violet-500/10 px-2 py-1 rounded">
+              <Coins className="h-3 w-3" />
+              {CREDITS_COST} credits
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -182,7 +207,7 @@ export function MusicPanel({ open, onOpenChange, onGenerated }: MusicPanelProps)
             ) : (
               <>
                 <Music className="h-4 w-4 mr-2" />
-                Generate Music
+                Generate Music ({CREDITS_COST} credits)
               </>
             )}
           </Button>

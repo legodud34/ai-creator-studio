@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mic, Loader2, Play, Pause } from 'lucide-react';
+import { Mic, Loader2, Play, Pause, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,8 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const VOICES = [
   { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', gender: 'Male' },
@@ -29,6 +31,8 @@ const VOICES = [
   { id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill', gender: 'Male' },
 ];
 
+const CREDITS_COST = 5;
+
 interface AIVoicePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,8 +49,16 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
   const [previewDuration, setPreviewDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
+    if (!user) {
+      toast.error('Please sign in to generate voiceovers');
+      navigate('/auth');
+      return;
+    }
+
     if (!text.trim()) {
       toast.error('Please enter some text');
       return;
@@ -70,12 +82,21 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
             voiceId,
             stability: stability[0] / 100,
             speed: speed[0] / 100,
+            userId: user.id,
           }),
         }
       );
 
+      if (response.status === 402) {
+        const data = await response.json();
+        toast.error(data.error || 'Insufficient credits');
+        navigate('/credits');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to generate voiceover');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate voiceover');
       }
 
       const audioBlob = await response.blob();
@@ -95,7 +116,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
       toast.success('Voiceover generated!');
     } catch (error) {
       console.error('TTS error:', error);
-      toast.error('Failed to generate voiceover');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate voiceover');
     } finally {
       setIsGenerating(false);
     }
@@ -139,6 +160,10 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
               <Mic className="h-4 w-4 text-cyan-400" />
             </div>
             AI Voiceover
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded">
+              <Coins className="h-3 w-3" />
+              {CREDITS_COST} credits
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -215,7 +240,7 @@ export function AIVoicePanel({ open, onOpenChange, onGenerated }: AIVoicePanelPr
             ) : (
               <>
                 <Mic className="h-4 w-4 mr-2" />
-                Generate Voiceover
+                Generate Voiceover ({CREDITS_COST} credits)
               </>
             )}
           </Button>
