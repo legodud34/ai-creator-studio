@@ -1,33 +1,38 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
-import { Trash2, Volume2, Plus, Minus, Magnet } from 'lucide-react';
+import { Trash2, Volume2, Plus, Minus, Magnet, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { AudioClip } from '@/hooks/useEditorState';
+import type { AudioClip, VideoClip } from '@/hooks/useEditorState';
 
 interface TimelineProps {
   duration: number;
   currentTime: number;
   audioTracks: AudioClip[];
+  videoTracks: VideoClip[];
   selectedClipId: string | null;
   zoom: number;
   isPlaying?: boolean;
   onSeek: (time: number) => void;
   onSelectClip: (id: string | null) => void;
   onUpdateClip: (id: string, updates: Partial<AudioClip>) => void;
+  onUpdateVideoClip: (id: string, updates: Partial<VideoClip>) => void;
   onRemoveClip: (id: string) => void;
+  onRemoveVideoClip: (id: string) => void;
   onZoomChange?: (zoom: number) => void;
 }
 
 const TRACK_COLORS = {
+  video: { bg: 'bg-blue-500', light: 'bg-blue-400', gradient: 'from-blue-600 to-blue-700' },
   voiceover: { bg: 'bg-cyan-500', light: 'bg-cyan-400', gradient: 'from-cyan-500 to-cyan-600' },
   sfx: { bg: 'bg-amber-500', light: 'bg-amber-400', gradient: 'from-amber-500 to-amber-600' },
   music: { bg: 'bg-violet-500', light: 'bg-violet-400', gradient: 'from-violet-500 to-violet-600' },
 };
 
 const TRACK_LABELS = {
+  video: { name: 'Video', icon: '🎬' },
   voiceover: { name: 'Voice', icon: '🎙️' },
-  sfx: { name: 'Sound FX', icon: '🔊' },
+  sfx: { name: 'SFX', icon: '🔊' },
   music: { name: 'Music', icon: '🎵' },
 };
 
@@ -35,13 +40,16 @@ export function Timeline({
   duration,
   currentTime,
   audioTracks,
+  videoTracks,
   selectedClipId,
   zoom,
   isPlaying = false,
   onSeek,
   onSelectClip,
   onUpdateClip,
+  onUpdateVideoClip,
   onRemoveClip,
+  onRemoveVideoClip,
   onZoomChange,
 }: TimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -49,6 +57,7 @@ export function Timeline({
   const [snapping, setSnapping] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [dragClipId, setDragClipId] = useState<string | null>(null);
+  const [dragClipType, setDragClipType] = useState<'audio' | 'video'>('audio');
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTime, setDragStartTime] = useState(0);
 
@@ -78,12 +87,13 @@ export function Timeline({
     onSelectClip(null);
   }, [duration, onSeek, pixelsPerSecond, onSelectClip, isDragging]);
 
-  const handleClipDragStart = (e: React.MouseEvent, clip: AudioClip) => {
+  const handleClipDragStart = (e: React.MouseEvent, clipId: string, startTime: number, clipType: 'audio' | 'video') => {
     e.preventDefault();
     setIsDragging(true);
-    setDragClipId(clip.id);
+    setDragClipId(clipId);
+    setDragClipType(clipType);
     setDragStartX(e.clientX);
-    setDragStartTime(clip.startTime);
+    setDragStartTime(startTime);
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -95,7 +105,19 @@ export function Timeline({
     
     if (snapping) {
       const snapThreshold = 10 / pixelsPerSecond;
+      // Snap to audio clips
       audioTracks.forEach(clip => {
+        if (clip.id === dragClipId) return;
+        const clipEnd = clip.startTime + clip.duration;
+        
+        if (Math.abs(newStartTime - clip.startTime) < snapThreshold) {
+          newStartTime = clip.startTime;
+        } else if (Math.abs(newStartTime - clipEnd) < snapThreshold) {
+          newStartTime = clipEnd;
+        }
+      });
+      // Snap to video clips
+      videoTracks.forEach(clip => {
         if (clip.id === dragClipId) return;
         const clipEnd = clip.startTime + clip.duration;
         
@@ -107,8 +129,12 @@ export function Timeline({
       });
     }
     
-    onUpdateClip(dragClipId, { startTime: newStartTime });
-  }, [isDragging, dragClipId, dragStartX, dragStartTime, pixelsPerSecond, snapping, audioTracks, onUpdateClip]);
+    if (dragClipType === 'video') {
+      onUpdateVideoClip(dragClipId, { startTime: newStartTime });
+    } else {
+      onUpdateClip(dragClipId, { startTime: newStartTime });
+    }
+  }, [isDragging, dragClipId, dragClipType, dragStartX, dragStartTime, pixelsPerSecond, snapping, audioTracks, videoTracks, onUpdateClip, onUpdateVideoClip]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -135,7 +161,7 @@ export function Timeline({
   const timelineWidth = Math.max(duration * pixelsPerSecond, 800);
   const playheadPosition = currentTime * pixelsPerSecond;
 
-  const trackTypes: Array<'voiceover' | 'sfx' | 'music'> = ['voiceover', 'sfx', 'music'];
+  const audioTrackTypes: Array<'voiceover' | 'sfx' | 'music'> = ['voiceover', 'sfx', 'music'];
 
   // Time markers
   const markerInterval = zoom >= 2 ? 1 : zoom >= 1 ? 5 : 10;
@@ -146,7 +172,7 @@ export function Timeline({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col h-full overflow-hidden bg-[#1c1c1e]">
         {/* Timeline Header */}
         <div className="h-10 px-4 border-b border-[#3a3a3c]/50 bg-[#2c2c2e] flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -205,7 +231,15 @@ export function Timeline({
             {/* Ruler spacer */}
             <div className="h-6 border-b border-[#3a3a3c]/50" />
             
-            {trackTypes.map(type => (
+            {/* Video Track Label */}
+            <div className="h-16 flex items-center px-3 border-b border-[#3a3a3c]/30 bg-[#1f1f22]">
+              <div className={cn('w-1 h-8 rounded-full mr-2', TRACK_COLORS.video.bg)} />
+              <span className="text-[11px] text-gray-400">
+                {TRACK_LABELS.video.icon} {TRACK_LABELS.video.name}
+              </span>
+            </div>
+            
+            {audioTrackTypes.map(type => (
               <div
                 key={type}
                 className="h-12 flex items-center px-3 border-b border-[#3a3a3c]/30"
@@ -244,8 +278,101 @@ export function Timeline({
                 ))}
               </div>
 
+              {/* Video Track - Filmstrip style */}
+              <div className="h-16 border-b border-[#3a3a3c]/40 relative bg-[#1a1a1c]">
+                {/* Track background pattern */}
+                <div 
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 79px, #333 79px, #333 80px)',
+                  }}
+                />
+
+                {videoTracks.map(clip => (
+                  <div
+                    key={clip.id}
+                    data-clip
+                    className={cn(
+                      'absolute top-1 h-14 rounded-lg cursor-pointer transition-all overflow-hidden',
+                      'bg-gradient-to-b shadow-lg border-2',
+                      TRACK_COLORS.video.gradient,
+                      selectedClipId === clip.id 
+                        ? 'border-white shadow-xl scale-[1.02]' 
+                        : 'border-blue-700/50 hover:brightness-110',
+                      dragClipId === clip.id && 'opacity-80 scale-105'
+                    )}
+                    style={{
+                      left: clip.startTime * pixelsPerSecond,
+                      width: Math.max(clip.duration * pixelsPerSecond, 80),
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectClip(clip.id);
+                    }}
+                    onMouseDown={(e) => handleClipDragStart(e, clip.id, clip.startTime, 'video')}
+                  >
+                    {/* Filmstrip visualization */}
+                    <div className="absolute inset-0 flex">
+                      {clip.thumbnails && clip.thumbnails.length > 0 ? (
+                        clip.thumbnails.map((thumb, i) => (
+                          <div
+                            key={i}
+                            className="h-full flex-shrink-0 border-r border-black/30"
+                            style={{ 
+                              width: `${100 / clip.thumbnails!.length}%`,
+                              backgroundImage: `url(${thumb})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }}
+                          />
+                        ))
+                      ) : (
+                        // Placeholder filmstrip pattern
+                        Array.from({ length: Math.max(4, Math.floor(clip.duration / 2)) }, (_, i) => (
+                          <div
+                            key={i}
+                            className="h-full flex-shrink-0 bg-blue-800/40 border-r border-black/30 flex items-center justify-center"
+                            style={{ width: `${100 / Math.max(4, Math.floor(clip.duration / 2))}%` }}
+                          >
+                            <Film className="h-4 w-4 text-blue-400/40" />
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    
+                    {/* Overlay with clip info */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    <div className="absolute bottom-1 left-2 right-2 flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-white truncate drop-shadow-md">
+                        {clip.name}
+                      </span>
+                      <span className="text-[9px] text-white/70 font-mono">
+                        {formatTimeShort(clip.duration)}
+                      </span>
+                    </div>
+                    
+                    {/* Resize handles */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40 rounded-l-lg" />
+                    <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40 rounded-r-lg" />
+
+                    {/* Delete button on selection */}
+                    {selectedClipId === clip.id && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveVideoClip(clip.id);
+                        }}
+                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-400 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3 text-white" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               {/* Audio Tracks */}
-              {trackTypes.map(type => {
+              {audioTrackTypes.map(type => {
                 const clips = audioTracks.filter(c => c.type === type);
                 const colors = TRACK_COLORS[type];
                 
@@ -283,7 +410,7 @@ export function Timeline({
                           e.stopPropagation();
                           onSelectClip(clip.id);
                         }}
-                        onMouseDown={(e) => handleClipDragStart(e, clip)}
+                        onMouseDown={(e) => handleClipDragStart(e, clip.id, clip.startTime, 'audio')}
                       >
                         {/* Waveform */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-40">
