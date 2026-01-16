@@ -21,6 +21,11 @@ export interface VideoClip {
   thumbnails?: string[]; // Filmstrip thumbnails
 }
 
+export interface SelectionRange {
+  inPoint: number | null;
+  outPoint: number | null;
+}
+
 export interface EditorProject {
   id?: string;
   name: string;
@@ -30,6 +35,7 @@ export interface EditorProject {
   videoTracks: VideoClip[];
   currentTime: number;
   isPlaying: boolean;
+  selection: SelectionRange;
 }
 
 const initialProject: EditorProject = {
@@ -40,6 +46,7 @@ const initialProject: EditorProject = {
   videoTracks: [],
   currentTime: 0,
   isPlaying: false,
+  selection: { inPoint: null, outPoint: null },
 };
 
 export function useEditorState() {
@@ -59,6 +66,36 @@ export function useEditorState() {
   const setProjectName = useCallback((name: string) => {
     setProject(prev => ({ ...prev, name }));
   }, []);
+
+  // Selection controls
+  const setInPoint = useCallback((time: number | null) => {
+    setProject(prev => ({
+      ...prev,
+      selection: { ...prev.selection, inPoint: time },
+    }));
+  }, []);
+
+  const setOutPoint = useCallback((time: number | null) => {
+    setProject(prev => ({
+      ...prev,
+      selection: { ...prev.selection, outPoint: time },
+    }));
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setProject(prev => ({
+      ...prev,
+      selection: { inPoint: null, outPoint: null },
+    }));
+  }, []);
+
+  const getSelectionDuration = useCallback(() => {
+    const { inPoint, outPoint } = project.selection;
+    if (inPoint !== null && outPoint !== null) {
+      return Math.abs(outPoint - inPoint);
+    }
+    return 0;
+  }, [project.selection]);
 
   const addAudioClip = useCallback((clip: Omit<AudioClip, 'id'>) => {
     const id = crypto.randomUUID();
@@ -127,6 +164,42 @@ export function useEditorState() {
       setSelectedClipId(null);
     }
   }, [selectedClipId]);
+
+  // Split clip at playhead
+  const splitVideoClipAtPlayhead = useCallback(() => {
+    const { currentTime, videoTracks } = project;
+    
+    // Find clip under playhead
+    const clipToSplit = videoTracks.find(clip => 
+      currentTime > clip.startTime && currentTime < clip.startTime + clip.duration
+    );
+    
+    if (!clipToSplit) return false;
+
+    const splitPoint = currentTime - clipToSplit.startTime;
+    
+    // Update original clip to end at split point
+    setProject(prev => ({
+      ...prev,
+      videoTracks: [
+        ...prev.videoTracks.filter(c => c.id !== clipToSplit.id),
+        {
+          ...clipToSplit,
+          duration: splitPoint,
+        },
+        {
+          id: crypto.randomUUID(),
+          url: clipToSplit.url,
+          name: `${clipToSplit.name} (2)`,
+          startTime: currentTime,
+          duration: clipToSplit.duration - splitPoint,
+          thumbnails: clipToSplit.thumbnails,
+        },
+      ].sort((a, b) => a.startTime - b.startTime),
+    }));
+    
+    return true;
+  }, [project]);
 
   const setCurrentTime = useCallback((time: number) => {
     setProject(prev => ({ ...prev, currentTime: time }));
@@ -225,12 +298,17 @@ export function useEditorState() {
     setVideoUrl,
     setVideoDuration,
     setProjectName,
+    setInPoint,
+    setOutPoint,
+    clearSelection,
+    getSelectionDuration,
     addAudioClip,
     updateAudioClip,
     removeAudioClip,
     addVideoClip,
     updateVideoClip,
     removeVideoClip,
+    splitVideoClipAtPlayhead,
     setCurrentTime,
     play,
     pause,

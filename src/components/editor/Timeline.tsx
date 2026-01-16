@@ -3,7 +3,7 @@ import { Trash2, Volume2, Plus, Minus, Magnet, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { AudioClip, VideoClip } from '@/hooks/useEditorState';
+import type { AudioClip, VideoClip, SelectionRange } from '@/hooks/useEditorState';
 
 interface TimelineProps {
   duration: number;
@@ -13,6 +13,7 @@ interface TimelineProps {
   selectedClipId: string | null;
   zoom: number;
   isPlaying?: boolean;
+  selection?: SelectionRange;
   onSeek: (time: number) => void;
   onSelectClip: (id: string | null) => void;
   onUpdateClip: (id: string, updates: Partial<AudioClip>) => void;
@@ -44,6 +45,7 @@ export function Timeline({
   selectedClipId,
   zoom,
   isPlaying = false,
+  selection,
   onSeek,
   onSelectClip,
   onUpdateClip,
@@ -127,6 +129,17 @@ export function Timeline({
           newStartTime = clipEnd;
         }
       });
+      // Snap to selection points
+      if (selection?.inPoint !== null) {
+        if (Math.abs(newStartTime - selection.inPoint) < snapThreshold) {
+          newStartTime = selection.inPoint;
+        }
+      }
+      if (selection?.outPoint !== null) {
+        if (Math.abs(newStartTime - selection.outPoint) < snapThreshold) {
+          newStartTime = selection.outPoint;
+        }
+      }
     }
     
     if (dragClipType === 'video') {
@@ -134,7 +147,7 @@ export function Timeline({
     } else {
       onUpdateClip(dragClipId, { startTime: newStartTime });
     }
-  }, [isDragging, dragClipId, dragClipType, dragStartX, dragStartTime, pixelsPerSecond, snapping, audioTracks, videoTracks, onUpdateClip, onUpdateVideoClip]);
+  }, [isDragging, dragClipId, dragClipType, dragStartX, dragStartTime, pixelsPerSecond, snapping, audioTracks, videoTracks, selection, onUpdateClip, onUpdateVideoClip]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -170,6 +183,13 @@ export function Timeline({
     markers.push(i);
   }
 
+  // Selection overlay calculations
+  const hasSelection = selection?.inPoint !== null && selection?.outPoint !== null;
+  const selectionStart = hasSelection ? Math.min(selection!.inPoint!, selection!.outPoint!) : 0;
+  const selectionEnd = hasSelection ? Math.max(selection!.inPoint!, selection!.outPoint!) : 0;
+  const selectionLeft = selectionStart * pixelsPerSecond;
+  const selectionWidth = (selectionEnd - selectionStart) * pixelsPerSecond;
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col h-full overflow-hidden bg-[#1c1c1e]">
@@ -177,6 +197,11 @@ export function Timeline({
         <div className="h-10 px-4 border-b border-[#3a3a3c]/50 bg-[#2c2c2e] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium text-gray-400">Timeline</span>
+            {hasSelection && (
+              <span className="text-[10px] text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded">
+                Selection: {(selectionEnd - selectionStart).toFixed(1)}s
+              </span>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
@@ -262,6 +287,28 @@ export function Timeline({
             onClick={handleTimelineClick}
           >
             <div style={{ width: timelineWidth, minWidth: '100%' }} className="relative">
+              {/* Selection Overlay - Behind everything */}
+              {hasSelection && (
+                <div
+                  className="absolute top-0 bottom-0 bg-purple-500/20 border-l-2 border-r-2 border-purple-500 pointer-events-none z-5"
+                  style={{
+                    left: selectionLeft,
+                    width: selectionWidth,
+                  }}
+                >
+                  {/* IN marker */}
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-purple-500" />
+                  <div className="absolute left-0 top-0 px-1 py-0.5 bg-purple-600 text-[8px] text-white font-bold rounded-br">
+                    IN
+                  </div>
+                  {/* OUT marker */}
+                  <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-purple-500" />
+                  <div className="absolute right-0 top-0 px-1 py-0.5 bg-purple-600 text-[8px] text-white font-bold rounded-bl">
+                    OUT
+                  </div>
+                </div>
+              )}
+
               {/* Time Ruler */}
               <div className="h-6 border-b border-[#3a3a3c]/50 relative bg-[#2c2c2e] sticky top-0 z-10">
                 {markers.map(time => (
@@ -276,6 +323,20 @@ export function Timeline({
                     </span>
                   </div>
                 ))}
+                
+                {/* Selection markers on ruler */}
+                {selection?.inPoint !== null && (
+                  <div
+                    className="absolute top-0 h-full w-0.5 bg-purple-500"
+                    style={{ left: selection.inPoint * pixelsPerSecond }}
+                  />
+                )}
+                {selection?.outPoint !== null && (
+                  <div
+                    className="absolute top-0 h-full w-0.5 bg-purple-500"
+                    style={{ left: selection.outPoint * pixelsPerSecond }}
+                  />
+                )}
               </div>
 
               {/* Video Track - Filmstrip style */}
@@ -422,41 +483,36 @@ export function Timeline({
                                 <rect
                                   key={i}
                                   x={`${x}%`}
-                                  y={`${50 - height / 2}%`}
-                                  width="3"
+                                  y={`${50 - height/2}%`}
+                                  width="2"
                                   height={`${height}%`}
-                                  fill="white"
-                                  rx="1.5"
+                                  fill="currentColor"
+                                  className="text-white/60"
                                 />
                               );
                             })}
                           </svg>
                         </div>
-                        
-                        <div className="relative px-2 py-1 h-full flex flex-col justify-between">
-                          <span className="text-[10px] font-semibold text-white truncate drop-shadow-md">
+
+                        {/* Clip info */}
+                        <div className="absolute inset-0 flex items-center px-2">
+                          <span className="text-[10px] font-medium text-white truncate drop-shadow-md">
                             {clip.name}
                           </span>
-                          <div className="flex items-center gap-1">
-                            <Volume2 className="h-2.5 w-2.5 text-white/70" />
-                            <span className="text-[9px] text-white/70 font-mono">
-                              {formatTimeShort(clip.duration)}
-                            </span>
-                          </div>
                         </div>
-                        
-                        {/* Resize handles */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-white/40 rounded-l-lg" />
-                        <div className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-white/40 rounded-r-lg" />
 
-                        {/* Delete button on selection */}
+                        {/* Resize handles */}
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40 rounded-l-lg" />
+                        <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40 rounded-r-lg" />
+
+                        {/* Delete button */}
                         {selectedClipId === clip.id && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onRemoveClip(clip.id);
                             }}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-400 transition-colors"
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-400 transition-colors z-10"
                           >
                             <Trash2 className="h-3 w-3 text-white" />
                           </button>
@@ -469,12 +525,11 @@ export function Timeline({
 
               {/* Playhead */}
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
                 style={{ left: playheadPosition }}
               >
-                {/* Playhead handle */}
-                <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full shadow-lg" />
-                <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-red-500 mt-2" />
+                {/* Playhead top marker */}
+                <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rotate-45" />
               </div>
             </div>
           </div>

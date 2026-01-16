@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Play, Pause,
-  Download, Film, Mic, Music, Sparkles, Upload, Image
+  Download, Film, Mic, Music, Sparkles, Upload, Image,
+  Scissors, Wand2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -15,17 +16,21 @@ import { SFXPanel } from '@/components/editor/SFXPanel';
 import { MusicPanel } from '@/components/editor/MusicPanel';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 type SidebarSection = 'my-movie' | 'photos' | 'ai-media';
 
 export default function Editor() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   const {
     project, selectedClipId, setSelectedClipId, videoRef,
     setVideoUrl, setVideoDuration, setProjectName, addAudioClip,
     updateAudioClip, removeAudioClip, addVideoClip, updateVideoClip, removeVideoClip,
     setCurrentTime, togglePlayPause, getTotalDuration, resetProject,
+    setInPoint, setOutPoint, clearSelection, getSelectionDuration, splitVideoClipAtPlayhead,
   } = useEditorState();
 
   const [audioAssets, setAudioAssets] = useState<AudioClip[]>([]);
@@ -36,41 +41,72 @@ export default function Editor() {
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('my-movie');
   const [dragOver, setDragOver] = useState(false);
   const [importedMedia, setImportedMedia] = useState<Array<{ id: string; url: string; name: string; type: 'video' | 'image' }>>([]);
+  const [isAIEditing, setIsAIEditing] = useState(false);
+  const [aiEditProgress, setAiEditProgress] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const handleVideoUpload = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
-    const name = file.name.replace(/\.[^/.]+$/, '');
-    const type = file.type.startsWith('video/') ? 'video' : 'image';
-    const mediaId = crypto.randomUUID();
+    setImportError(null);
     
-    // Add to imported media
-    setImportedMedia(prev => [...prev, { id: mediaId, url, name, type: type as 'video' | 'image' }]);
-    
-    // Set as current project video
-    setVideoUrl(url);
-    setProjectName(name);
-
-    // Add as video clip to timeline
-    if (type === 'video') {
-      // Get video duration
-      const tempVideo = document.createElement('video');
-      tempVideo.src = url;
-      tempVideo.onloadedmetadata = () => {
-        addVideoClip({
-          url,
-          name,
-          startTime: 0,
-          duration: tempVideo.duration,
-        });
-      };
+    // Validate file type
+    if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) {
+      const error = `Unsupported file type: ${file.type || 'unknown'}`;
+      setImportError(error);
+      toast.error(error);
+      return;
     }
     
-    toast.success('Media imported successfully');
+    console.log('[Editor] Importing file:', file.name, 'type:', file.type, 'size:', file.size);
+    
+    try {
+      const url = URL.createObjectURL(file);
+      const name = file.name.replace(/\.[^/.]+$/, '');
+      const type = file.type.startsWith('video/') ? 'video' : 'image';
+      const mediaId = crypto.randomUUID();
+      
+      // Add to imported media
+      setImportedMedia(prev => [...prev, { id: mediaId, url, name, type: type as 'video' | 'image' }]);
+      
+      // Set as current project video
+      setVideoUrl(url);
+      setProjectName(name);
+
+      // Add as video clip to timeline
+      if (type === 'video') {
+        const tempVideo = document.createElement('video');
+        tempVideo.src = url;
+        
+        tempVideo.onloadedmetadata = () => {
+          console.log('[Editor] Video metadata loaded, duration:', tempVideo.duration);
+          addVideoClip({
+            url,
+            name,
+            startTime: 0,
+            duration: tempVideo.duration,
+          });
+          toast.success('Video imported successfully');
+        };
+        
+        tempVideo.onerror = (e) => {
+          console.error('[Editor] Video load error:', e);
+          const errorMsg = 'Could not load video. Try exporting as MP4 (H.264) for best compatibility.';
+          setImportError(errorMsg);
+          toast.error(errorMsg);
+        };
+      } else {
+        toast.success('Image imported successfully');
+      }
+    } catch (err) {
+      console.error('[Editor] Import error:', err);
+      const error = 'Failed to import media file';
+      setImportError(error);
+      toast.error(error);
+    }
   }, [setVideoUrl, setProjectName, addVideoClip]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
+    if (file) {
       handleVideoUpload(file);
     }
     if (e.target) e.target.value = '';
@@ -80,7 +116,7 @@ export default function Editor() {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && (file.type.startsWith('video/') || file.type.startsWith('image/'))) {
+    if (file) {
       handleVideoUpload(file);
     }
   };
@@ -107,14 +143,107 @@ export default function Editor() {
   }, []);
 
   const handleAddClipToTimeline = useCallback((asset: Omit<AudioClip, 'id' | 'startTime'>) => {
-    addAudioClip({ ...asset, startTime: project.currentTime });
+    // If there's a selection, add at the in point
+    const startTime = project.selection.inPoint ?? project.currentTime;
+    addAudioClip({ ...asset, startTime });
     toast.success(`Added to timeline`);
-  }, [addAudioClip, project.currentTime]);
+  }, [addAudioClip, project.currentTime, project.selection.inPoint]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const frames = Math.floor((seconds % 1) * 30);
+    return `${mins}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+  };
+
+  // AI Edit Selection handler
+  const handleAIEditSelection = async () => {
+    if (!user) {
+      toast.error('Please sign in to use AI editing');
+      navigate('/auth');
+      return;
+    }
+
+    const { inPoint, outPoint } = project.selection;
+    if (inPoint === null || outPoint === null) {
+      toast.error('Set IN and OUT points first (press I and O)');
+      return;
+    }
+
+    const sourceVideo = project.videoTracks[0];
+    if (!sourceVideo) {
+      toast.error('No video on timeline');
+      return;
+    }
+
+    const prompt = window.prompt('Enter AI edit instructions for the selected section:');
+    if (!prompt?.trim()) return;
+
+    setIsAIEditing(true);
+    setAiEditProgress(5);
+
+    try {
+      // Start the AI edit
+      const startTime = Math.min(inPoint, outPoint);
+      const endTime = Math.max(inPoint, outPoint);
+      
+      const response = await supabase.functions.invoke('edit-video', {
+        body: {
+          videoUrl: sourceVideo.url,
+          prompt: prompt.trim(),
+          userId: user.id,
+          startTime,
+          endTime,
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+
+      const predictionId = response.data?.id;
+      if (!predictionId) throw new Error('No prediction ID returned');
+
+      // Poll for completion
+      let attempts = 0;
+      const maxAttempts = 120; // 10 minutes max
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        attempts++;
+        
+        setAiEditProgress(Math.min(10 + (attempts / maxAttempts) * 85, 95));
+        
+        const statusRes = await supabase.functions.invoke('edit-video', {
+          body: { predictionId },
+        });
+        
+        if (statusRes.data?.status === 'succeeded') {
+          const editedUrl = statusRes.data.output;
+          
+          // Add edited clip to timeline after the original selection
+          addVideoClip({
+            url: editedUrl,
+            name: `AI Edit: ${prompt.substring(0, 20)}...`,
+            startTime: endTime + 0.5, // Place after selection with small gap
+            duration: endTime - startTime,
+          });
+          
+          toast.success('AI edit complete! Edited clip added to timeline.');
+          clearSelection();
+          break;
+        } else if (statusRes.data?.status === 'failed') {
+          throw new Error(statusRes.data.error || 'AI editing failed');
+        }
+      }
+      
+      setAiEditProgress(100);
+    } catch (err: any) {
+      console.error('[Editor] AI edit error:', err);
+      toast.error(err.message || 'AI editing failed');
+    } finally {
+      setIsAIEditing(false);
+      setAiEditProgress(0);
+    }
   };
 
   // Keyboard shortcuts
@@ -123,29 +252,70 @@ export default function Editor() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
       switch (e.code) {
-        case 'Space': e.preventDefault(); togglePlayPause(); break;
+        case 'Space': 
+          e.preventDefault(); 
+          togglePlayPause(); 
+          break;
+        case 'KeyI':
+          // Set IN point
+          e.preventDefault();
+          setInPoint(project.currentTime);
+          toast.success(`IN point: ${formatTime(project.currentTime)}`);
+          break;
+        case 'KeyO':
+          // Set OUT point
+          e.preventDefault();
+          setOutPoint(project.currentTime);
+          toast.success(`OUT point: ${formatTime(project.currentTime)}`);
+          break;
+        case 'KeyX':
+          // Clear selection
+          e.preventDefault();
+          clearSelection();
+          toast.info('Selection cleared');
+          break;
+        case 'KeyS':
+          // Split at playhead
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            if (splitVideoClipAtPlayhead()) {
+              toast.success('Clip split at playhead');
+            } else {
+              toast.info('No clip under playhead to split');
+            }
+          }
+          break;
         case 'Delete':
         case 'Backspace': 
           if (selectedClipId) {
-            // Try removing from both audio and video tracks
             removeAudioClip(selectedClipId);
             removeVideoClip(selectedClipId);
             toast.success('Clip deleted');
           }
           break;
-        case 'ArrowLeft': e.preventDefault(); setCurrentTime(Math.max(0, project.currentTime - 1)); break;
-        case 'ArrowRight': e.preventDefault(); setCurrentTime(Math.min(getTotalDuration(), project.currentTime + 1)); break;
+        case 'ArrowLeft': 
+          e.preventDefault(); 
+          setCurrentTime(Math.max(0, project.currentTime - (e.shiftKey ? 0.1 : 1))); 
+          break;
+        case 'ArrowRight': 
+          e.preventDefault(); 
+          setCurrentTime(Math.min(getTotalDuration(), project.currentTime + (e.shiftKey ? 0.1 : 1))); 
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlayPause, selectedClipId, removeAudioClip, removeVideoClip, project.currentTime, getTotalDuration, setCurrentTime]);
+  }, [togglePlayPause, selectedClipId, removeAudioClip, removeVideoClip, project.currentTime, getTotalDuration, setCurrentTime, setInPoint, setOutPoint, clearSelection, splitVideoClipAtPlayhead]);
+
+  const hasSelection = project.selection.inPoint !== null && project.selection.outPoint !== null;
+  const selectionStart = hasSelection ? Math.min(project.selection.inPoint!, project.selection.outPoint!) : 0;
+  const selectionEnd = hasSelection ? Math.max(project.selection.inPoint!, project.selection.outPoint!) : 0;
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className="h-screen flex flex-col bg-[#1e1e1e] text-white overflow-hidden">
         {/* Top Bar - iMovie style */}
-        <header className="h-11 bg-gradient-to-b from-[#3d3d3d] to-[#2d2d2d] border-b border-black/60 flex items-center px-3 gap-3 shadow-lg">
+        <header className="h-12 bg-gradient-to-b from-[#3d3d3d] to-[#2d2d2d] border-b border-black/60 flex items-center px-3 gap-3 shadow-lg">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -166,6 +336,51 @@ export default function Editor() {
           />
 
           <div className="flex-1" />
+
+          {/* Selection Display */}
+          {hasSelection && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-purple-600/20 border border-purple-500/40 rounded-lg text-xs">
+              <Scissors className="h-3.5 w-3.5 text-purple-400" />
+              <span className="text-purple-300">
+                {formatTime(selectionStart)} → {formatTime(selectionEnd)} 
+                <span className="text-purple-400/70 ml-1">({getSelectionDuration().toFixed(1)}s)</span>
+              </span>
+            </div>
+          )}
+
+          {/* AI Edit Selection Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                disabled={!hasSelection || isAIEditing || !project.videoTracks.length}
+                onClick={handleAIEditSelection}
+                className={cn(
+                  "h-8 px-4 rounded-lg text-xs font-medium shadow-lg transition-all",
+                  hasSelection 
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white" 
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                )}
+              >
+                {isAIEditing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Editing {aiEditProgress.toFixed(0)}%
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                    AI Edit Selection
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {hasSelection 
+                ? 'AI edit the selected section (20 credits)' 
+                : 'Press I to set IN, O to set OUT'}
+            </TooltipContent>
+          </Tooltip>
 
           <div className="flex items-center gap-2">
             <Button size="sm" className="h-8 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium shadow-lg">
@@ -226,6 +441,18 @@ export default function Editor() {
               <Sparkles className="h-4 w-4" />
               AI Media
             </button>
+
+            {/* Keyboard Shortcuts Help */}
+            <div className="mt-auto p-3 border-t border-gray-700/50">
+              <p className="text-[9px] text-gray-500 font-semibold uppercase mb-2">Shortcuts</p>
+              <div className="space-y-1 text-[10px] text-gray-400">
+                <div className="flex justify-between"><span>Play/Pause</span><kbd className="bg-gray-800 px-1 rounded">Space</kbd></div>
+                <div className="flex justify-between"><span>Set In</span><kbd className="bg-gray-800 px-1 rounded">I</kbd></div>
+                <div className="flex justify-between"><span>Set Out</span><kbd className="bg-gray-800 px-1 rounded">O</kbd></div>
+                <div className="flex justify-between"><span>Clear</span><kbd className="bg-gray-800 px-1 rounded">X</kbd></div>
+                <div className="flex justify-between"><span>Split</span><kbd className="bg-gray-800 px-1 rounded">S</kbd></div>
+              </div>
+            </div>
           </div>
 
           {/* Media Browser - Center-left */}
@@ -268,7 +495,15 @@ export default function Editor() {
                       </div>
                       <p className="text-sm text-gray-300 font-medium">Import Media</p>
                       <p className="text-xs text-gray-500 mt-1">Drag & drop or click</p>
+                      <p className="text-[10px] text-gray-600 mt-2">Best: MP4 (H.264)</p>
                     </div>
+
+                    {/* Import Error Display */}
+                    {importError && (
+                      <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300">
+                        {importError}
+                      </div>
+                    )}
 
                     {/* Imported Media Grid */}
                     {importedMedia.length > 0 && (
@@ -404,7 +639,7 @@ export default function Editor() {
         </div>
 
         {/* Timeline - iMovie style at bottom */}
-        <div className="h-60 bg-[#1c1c1e] border-t-2 border-black">
+        <div className="h-64 bg-[#1c1c1e] border-t-2 border-black">
           <Timeline 
             duration={getTotalDuration() || 60} 
             currentTime={project.currentTime} 
@@ -413,6 +648,7 @@ export default function Editor() {
             selectedClipId={selectedClipId} 
             zoom={zoom} 
             isPlaying={project.isPlaying}
+            selection={project.selection}
             onSeek={setCurrentTime} 
             onSelectClip={setSelectedClipId} 
             onUpdateClip={updateAudioClip}
