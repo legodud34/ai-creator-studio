@@ -1,12 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const CREDITS_PER_IMAGE = 1;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -24,33 +21,8 @@ serve(async (req) => {
       throw new Error("User ID is required");
     }
 
-    // Initialize Supabase admin client for credit deduction
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // Check and deduct credits
-    const { data: newBalance, error: creditError } = await supabaseAdmin.rpc("deduct_credits", {
-      p_user_id: userId,
-      p_amount: CREDITS_PER_IMAGE,
-      p_transaction_type: "image_generation",
-      p_description: `Image generation: ${prompt.substring(0, 50)}...`,
-    });
-
-    if (creditError) {
-      console.error("Credit deduction error:", creditError);
-      throw new Error("Failed to process credits");
-    }
-
-    if (newBalance === -1) {
-      return new Response(
-        JSON.stringify({ error: "Insufficient credits. Please purchase more credits to continue." }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Deducted ${CREDITS_PER_IMAGE} credit. New balance: ${newBalance}`);
+    // TESTING MODE: Skip credit deduction - using Lovable AI credits directly
+    console.log("TESTING MODE: Skipping user credit deduction");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -81,15 +53,6 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       
-      // Refund credits on API failure
-      await supabaseAdmin.rpc("add_credits", {
-        p_user_id: userId,
-        p_amount: CREDITS_PER_IMAGE,
-        p_transaction_type: "refund",
-        p_description: "Refund: Image generation failed",
-      });
-      console.log("Credits refunded due to API failure");
-      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
@@ -113,18 +76,11 @@ serve(async (req) => {
     const textResponse = data.choices?.[0]?.message?.content;
 
     if (!imageUrl) {
-      // Refund credits if no image generated
-      await supabaseAdmin.rpc("add_credits", {
-        p_user_id: userId,
-        p_amount: CREDITS_PER_IMAGE,
-        p_transaction_type: "refund",
-        p_description: "Refund: No image generated",
-      });
       throw new Error("No image generated");
     }
 
     return new Response(
-      JSON.stringify({ imageUrl, description: textResponse, creditsRemaining: newBalance }),
+      JSON.stringify({ imageUrl, description: textResponse }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
