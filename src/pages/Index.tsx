@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Image, Wand2, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield } from "lucide-react";
+import { Image, Wand2, Compass, LogIn, Zap, PlayCircle, Clock, Film, Shield, Scissors } from "lucide-react";
 import ImageGenerator from "@/components/ImageGenerator";
 import { VideoEditor } from "@/components/VideoEditor";
 import TrendingSection from "@/components/TrendingSection";
@@ -18,6 +18,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("images");
   const { user, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkAdminOrOwner = async () => {
@@ -171,6 +172,25 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="editor" className="mt-6 md:mt-8">
+            {/* Pro Editor CTA */}
+            <div className="glass rounded-xl p-6 mb-6 text-center bg-gradient-to-br from-accent/10 to-primary/10 border border-accent/30">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-primary flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Scissors className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Pro Video Editor</h3>
+              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                Full timeline editing with AI tools, voiceover, music, SFX, and section-based AI editing
+              </p>
+              <Button 
+                onClick={() => navigate('/editor')} 
+                className="gradient-accent text-lg px-8 py-6 h-auto"
+              >
+                <Scissors className="w-5 h-5 mr-2" />
+                Open Pro Editor
+              </Button>
+            </div>
+            
+            {/* Quick Edit Section */}
             <VideoEditor />
           </TabsContent>
         </Tabs>
