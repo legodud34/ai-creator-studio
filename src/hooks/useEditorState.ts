@@ -18,6 +18,7 @@ export interface VideoClip {
   startTime: number;
   duration: number;
   name: string;
+  thumbnails?: string[]; // Filmstrip thumbnails
 }
 
 export interface EditorProject {
@@ -26,6 +27,7 @@ export interface EditorProject {
   videoUrl?: string;
   videoDuration: number;
   audioTracks: AudioClip[];
+  videoTracks: VideoClip[];
   currentTime: number;
   isPlaying: boolean;
 }
@@ -35,6 +37,7 @@ const initialProject: EditorProject = {
   videoUrl: undefined,
   videoDuration: 0,
   audioTracks: [],
+  videoTracks: [],
   currentTime: 0,
   isPlaying: false,
 };
@@ -88,6 +91,36 @@ export function useEditorState() {
     setProject(prev => ({
       ...prev,
       audioTracks: prev.audioTracks.filter(clip => clip.id !== id),
+    }));
+    
+    if (selectedClipId === id) {
+      setSelectedClipId(null);
+    }
+  }, [selectedClipId]);
+
+  const addVideoClip = useCallback((clip: Omit<VideoClip, 'id'>) => {
+    const id = crypto.randomUUID();
+    const newClip: VideoClip = { ...clip, id };
+    setProject(prev => ({
+      ...prev,
+      videoTracks: [...prev.videoTracks, newClip],
+    }));
+    return id;
+  }, []);
+
+  const updateVideoClip = useCallback((id: string, updates: Partial<VideoClip>) => {
+    setProject(prev => ({
+      ...prev,
+      videoTracks: prev.videoTracks.map(clip =>
+        clip.id === id ? { ...clip, ...updates } : clip
+      ),
+    }));
+  }, []);
+
+  const removeVideoClip = useCallback((id: string) => {
+    setProject(prev => ({
+      ...prev,
+      videoTracks: prev.videoTracks.filter(clip => clip.id !== id),
     }));
     
     if (selectedClipId === id) {
@@ -162,8 +195,14 @@ export function useEditorState() {
         maxDuration = clipEnd;
       }
     });
+    project.videoTracks.forEach(clip => {
+      const clipEnd = clip.startTime + clip.duration;
+      if (clipEnd > maxDuration) {
+        maxDuration = clipEnd;
+      }
+    });
     return maxDuration;
-  }, [project.videoDuration, project.audioTracks]);
+  }, [project.videoDuration, project.audioTracks, project.videoTracks]);
 
   const resetProject = useCallback(() => {
     // Clean up all audio elements
@@ -189,6 +228,9 @@ export function useEditorState() {
     addAudioClip,
     updateAudioClip,
     removeAudioClip,
+    addVideoClip,
+    updateVideoClip,
+    removeVideoClip,
     setCurrentTime,
     play,
     pause,
